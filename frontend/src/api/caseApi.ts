@@ -7,14 +7,16 @@ import {
 } from "../services/authStorage";
 
 function resolveApiBaseUrl(): string {
-  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+  const configuredBaseUrl =
+    import.meta.env.VITE_API_BASE_URL?.trim() ||
+    import.meta.env.VITE_API_URL?.trim();
 
   if (!configuredBaseUrl) {
-    // Single-server deployment: call API on the same origin.
-    return "";
+    // Default to reverse-proxied API namespace on the same host.
+    return "/api";
   }
 
-  return configuredBaseUrl;
+  return configuredBaseUrl.replace(/\/$/, "");
 }
 
 const API = axios.create({

@@ -65,6 +65,9 @@ Base.metadata.create_all(bind=engine)
 app.include_router(auth_router)
 app.include_router(masters_router)
 app.include_router(dashboard_router)
+app.include_router(auth_router, prefix="/api")
+app.include_router(masters_router, prefix="/api")
+app.include_router(dashboard_router, prefix="/api")
 
 if (FRONTEND_DIST_DIR / "assets").exists():
     app.mount(
@@ -96,6 +99,7 @@ def db_test():
 
 
 @app.get("/cases", response_model=list[CaseResponse])
+@app.get("/api/cases", response_model=list[CaseResponse], include_in_schema=False)
 def get_cases(request: Request, db: Session = Depends(get_db)):
     accepts_html = "text/html" in request.headers.get("accept", "")
     if FRONTEND_INDEX_FILE.exists() and accepts_html:
@@ -106,6 +110,7 @@ def get_cases(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get("/cases/{id}", response_model=CaseResponse)
+@app.get("/api/cases/{id}", response_model=CaseResponse, include_in_schema=False)
 def get_case(id: int, db: Session = Depends(get_db)):
     case = db.get(Case, id)
     if case is None:
@@ -117,6 +122,12 @@ def get_case(id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/cases", response_model=CaseResponse, status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/api/cases",
+    response_model=CaseResponse,
+    status_code=status.HTTP_201_CREATED,
+    include_in_schema=False,
+)
 def create_case(case: CaseCreate, db: Session = Depends(get_db)):
     new_case = Case(**case.model_dump())
 
@@ -135,6 +146,7 @@ def create_case(case: CaseCreate, db: Session = Depends(get_db)):
 
 
 @app.put("/cases/{id}", response_model=CaseResponse)
+@app.put("/api/cases/{id}", response_model=CaseResponse, include_in_schema=False)
 def update_case(id: int, case_update: CaseUpdate, db: Session = Depends(get_db)):
     existing_case = db.get(Case, id)
     if existing_case is None:
@@ -161,6 +173,7 @@ def update_case(id: int, case_update: CaseUpdate, db: Session = Depends(get_db))
 
 
 @app.delete("/cases/{id}", response_model=MessageResponse)
+@app.delete("/api/cases/{id}", response_model=MessageResponse, include_in_schema=False)
 def delete_case(id: int, db: Session = Depends(get_db)):
     existing_case = db.get(Case, id)
     if existing_case is None:
