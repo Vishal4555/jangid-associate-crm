@@ -46,11 +46,11 @@ export default function CaseForm({ register, errors, watch, setValue }: Props) {
           ]);
 
         if (!cancelled) {
-          setBanks(bankResponse.items);
-          setBranches(branchResponse.items);
-          setExecutives(executiveResponse.items);
-          setLoanTypes(loanTypeResponse.items);
-          setProductTypes(productTypeResponse.items);
+          setBanks(Array.isArray(bankResponse?.items) ? bankResponse.items : []);
+          setBranches(Array.isArray(branchResponse?.items) ? branchResponse.items : []);
+          setExecutives(Array.isArray(executiveResponse?.items) ? executiveResponse.items : []);
+          setLoanTypes(Array.isArray(loanTypeResponse?.items) ? loanTypeResponse.items : []);
+          setProductTypes(Array.isArray(productTypeResponse?.items) ? productTypeResponse.items : []);
           setLoadError(null);
         }
       } catch (masterError) {

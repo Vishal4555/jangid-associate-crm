@@ -164,7 +164,7 @@ export default function MastersPage() {
         ]);
 
         if (!cancelled) {
-          setReferenceBanks(banks.items);
+          setReferenceBanks(Array.isArray(banks?.items) ? banks.items : []);
         }
       } catch (referenceError) {
         if (!cancelled) {
@@ -206,8 +206,9 @@ export default function MastersPage() {
         });
 
         if (!cancelled) {
-          setRecords(response.items as MasterRecord[]);
-          setTotalItems(response.total);
+          const items = Array.isArray(response?.items) ? response.items : [];
+          setRecords(items as MasterRecord[]);
+          setTotalItems(typeof response?.total === "number" ? response.total : items.length);
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -285,8 +286,9 @@ export default function MastersPage() {
         page,
         pageSize,
       });
-      setRecords(response.items as MasterRecord[]);
-      setTotalItems(response.total);
+      const items = Array.isArray(response?.items) ? response.items : [];
+      setRecords(items as MasterRecord[]);
+      setTotalItems(typeof response?.total === "number" ? response.total : items.length);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -357,7 +359,7 @@ export default function MastersPage() {
   async function reloadReferenceBanks() {
     try {
       const response = await listMasters("banks", { all: true });
-      setReferenceBanks(response.items);
+      setReferenceBanks(Array.isArray(response?.items) ? response.items : []);
     } catch {
       setReferenceBanks([]);
     }
@@ -496,14 +498,14 @@ export default function MastersPage() {
                     {error}
                   </td>
                 </tr>
-              ) : records.length === 0 ? (
+              ) : (records?.length ?? 0) === 0 ? (
                 <tr>
                   <td colSpan={columns.length + (isAdmin ? 2 : 1)} className="px-5 py-12 text-center text-sm text-slate-500">
                     No records found.
                   </td>
                 </tr>
               ) : (
-                records.map((record, index) => (
+                (records ?? []).map((record, index) => (
                   <tr key={record.id} className="transition hover:bg-slate-50/80">
                     <td className="px-5 py-4 text-sm text-slate-500">{(page - 1) * pageSize + index + 1}</td>
                     {columns.map((column) => (

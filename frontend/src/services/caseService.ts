@@ -82,7 +82,7 @@ function toErrorMessage(error: unknown): Error {
 export const getCases = async (): Promise<Case[]> => {
   try {
     const response = await API.get<CaseApiResponse[]>("/cases");
-    return response.data.map(mapCase);
+    return Array.isArray(response.data) ? response.data.map(mapCase) : [];
   } catch (error) {
     throw toErrorMessage(error);
   }

@@ -19,6 +19,7 @@ export default function CaseTable({
   onEdit,
   onDelete,
 }: Props) {
+  const safeCases = Array.isArray(cases) ? cases : [];
 
   if (loading) {
     return (
@@ -39,7 +40,7 @@ export default function CaseTable({
     );
   }
 
-  if (cases.length === 0) {
+  if (safeCases.length === 0) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-10 text-center">
         <h3 className="text-lg font-semibold text-slate-700">No cases found</h3>
@@ -70,7 +71,7 @@ export default function CaseTable({
 
           <tbody>
 
-            {cases.map((item) => (
+            {safeCases.map((item) => (
 
               <tr
                 key={item.id}
@@ -137,4 +138,4 @@ export default function CaseTable({
 
     </div>
   );
-} 
+}

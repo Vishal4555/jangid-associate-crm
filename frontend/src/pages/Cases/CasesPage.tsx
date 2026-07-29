@@ -50,7 +50,7 @@ export default function CasesPage() {
     try {
       setError(null);
       const data = await getCases();
-      setCases(data);
+      setCases(Array.isArray(data) ? data : []);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -65,8 +65,9 @@ export default function CasesPage() {
 
   const filteredCases = useMemo(() => {
     const query = search.trim().toLowerCase();
+    const safeCases = Array.isArray(cases) ? cases : [];
 
-    return cases.filter((item) => {
+    return safeCases.filter((item) => {
       const statusMatch = statusFilter === "All" || item.status === statusFilter;
 
       if (!statusMatch) {
@@ -157,7 +158,7 @@ export default function CasesPage() {
       <CaseToolbar
         search={search}
         statusFilter={statusFilter}
-        totalCount={cases.length}
+        totalCount={(cases ?? []).length}
         filteredCount={filteredCases.length}
         refreshing={refreshing}
         exporting={exporting}

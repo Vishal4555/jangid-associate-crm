@@ -4,7 +4,9 @@ import type {
   MasterListParams,
   MasterPageResponseMap,
   MasterPayloadMap,
+  MasterRecord,
   MasterRecordMap,
+  PageResponse,
 } from "../types/master";
 
 function toErrorMessage(error: unknown): Error {
@@ -54,6 +56,21 @@ function buildParams(params: MasterListParams = {}) {
   };
 }
 
+function normalizeMasterPageResponse<K extends MasterKey>(
+  data: unknown,
+): MasterPageResponseMap[K] {
+  const page = data as Partial<PageResponse<MasterRecord>> | null | undefined;
+  const items = Array.isArray(page?.items) ? page.items : [];
+
+  return {
+    items,
+    total: typeof page?.total === "number" ? page.total : items.length,
+    page: typeof page?.page === "number" ? page.page : 1,
+    page_size: typeof page?.page_size === "number" ? page.page_size : items.length,
+    total_pages: typeof page?.total_pages === "number" ? page.total_pages : 1,
+  } as MasterPageResponseMap[K];
+}
+
 export async function listMasters<K extends MasterKey>(
   master: K,
   params: MasterListParams = {},
@@ -63,7 +80,7 @@ export async function listMasters<K extends MasterKey>(
       params: buildParams(params),
     });
 
-    return response.data;
+    return normalizeMasterPageResponse<K>(response.data);
   } catch (error) {
     throw toErrorMessage(error);
   }
