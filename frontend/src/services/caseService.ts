@@ -1,0 +1,133 @@
+import API from "../api/caseApi";
+import { emitCasesChanged } from "./caseChangeEvents";
+import type {
+  Case,
+  CaseFormPayload,
+  DeleteCaseResponse,
+} from "../types/case";
+
+type CaseApiResponse = {
+  id: number;
+  case_no: string;
+  receive_date: string | null;
+  bank: string | null;
+  branch: string | null;
+  loan_type: string | null;
+  applicant: string | null;
+  product_type: string | null;
+  address: string | null;
+  city: string | null;
+  mobile: string | null;
+  executive: string | null;
+  status: string | null;
+  negative_reason: string | null;
+  landmark: string | null;
+  remarks: string | null;
+};
+
+function mapCase(data: CaseApiResponse): Case {
+  return {
+    id: data.id,
+    case_no: data.case_no,
+    receive_date: data.receive_date ?? "",
+    bank: data.bank ?? "",
+    branch: data.branch ?? "",
+    loan_type: data.loan_type ?? "",
+    applicant: data.applicant ?? "",
+    product_type: data.product_type ?? "",
+    address: data.address ?? "",
+    city: data.city ?? "",
+    mobile: data.mobile ?? "",
+    executive: data.executive ?? "",
+    status:
+      data.status === "Positive" || data.status === "Negative"
+        ? data.status
+        : "Pending",
+    negative_reason: data.negative_reason ?? "",
+    landmark: data.landmark ?? "",
+    remarks: data.remarks ?? "",
+  };
+}
+
+function cleanPayload(payload: CaseFormPayload): CaseFormPayload {
+  const entries = Object.entries(payload).map(([key, value]) => {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      return [key, trimmed === "" ? undefined : trimmed];
+    }
+    return [key, value];
+  });
+
+  return Object.fromEntries(entries);
+}
+
+function toErrorMessage(error: unknown): Error {
+  const message =
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error &&
+    typeof error.response === "object" &&
+    error.response !== null &&
+    "data" in error.response &&
+    typeof error.response.data === "object" &&
+    error.response.data !== null &&
+    "detail" in error.response.data &&
+    typeof error.response.data.detail === "string"
+      ? error.response.data.detail
+      : "Something went wrong while processing your request.";
+
+  return new Error(message);
+}
+
+export const getCases = async (): Promise<Case[]> => {
+  try {
+    const response = await API.get<CaseApiResponse[]>("/cases");
+    return response.data.map(mapCase);
+  } catch (error) {
+    throw toErrorMessage(error);
+  }
+};
+
+export const getCaseById = async (id: number): Promise<Case> => {
+  try {
+    const response = await API.get<CaseApiResponse>(`/cases/${id}`);
+    return mapCase(response.data);
+  } catch (error) {
+    throw toErrorMessage(error);
+  }
+};
+
+export const createCase = async (data: CaseFormPayload): Promise<Case> => {
+  try {
+    const response = await API.post<CaseApiResponse>("/cases", cleanPayload(data));
+    const createdCase = mapCase(response.data);
+    emitCasesChanged();
+    return createdCase;
+  } catch (error) {
+    throw toErrorMessage(error);
+  }
+};
+
+export const updateCase = async (
+  id: number,
+  data: CaseFormPayload,
+): Promise<Case> => {
+  try {
+    const response = await API.put<CaseApiResponse>(`/cases/${id}`, cleanPayload(data));
+    const updatedCase = mapCase(response.data);
+    emitCasesChanged();
+    return updatedCase;
+  } catch (error) {
+    throw toErrorMessage(error);
+  }
+};
+
+export const deleteCase = async (id: number): Promise<DeleteCaseResponse> => {
+  try {
+    const response = await API.delete<DeleteCaseResponse>(`/cases/${id}`);
+    emitCasesChanged();
+    return response.data;
+  } catch (error) {
+    throw toErrorMessage(error);
+  }
+};
