@@ -8,12 +8,29 @@ import {
   Settings,
   LogOut,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
 import type { AuthRole } from "../types/auth";
 
-const menus = [
+type SidebarPath =
+  | "/dashboard"
+  | "/cases"
+  | "/search"
+  | "/reports"
+  | "/masters"
+  | "/users"
+  | "/settings";
+
+type MenuItem = {
+  icon: LucideIcon;
+  name: string;
+  path: SidebarPath;
+  roles: AuthRole[];
+};
+
+const menus: MenuItem[] = [
   {
     icon: LayoutDashboard,
     name: "Dashboard",
@@ -69,7 +86,7 @@ export default function Sidebar() {
       return false;
     }
 
-    return item.roles.includes(role as AuthRole);
+    return item.roles.includes(role);
   });
 
   function handleLogout() {
