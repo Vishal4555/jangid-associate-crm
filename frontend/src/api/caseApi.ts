@@ -7,16 +7,11 @@ import {
 } from "../services/authStorage";
 
 function resolveApiBaseUrl(): string {
-  const configuredBaseUrl =
-    import.meta.env.VITE_API_BASE_URL?.trim() ||
-    import.meta.env.VITE_API_URL?.trim();
-
-  if (!configuredBaseUrl) {
-    // Default to reverse-proxied API namespace on the same host.
-    return "/api";
-  }
-
-  return configuredBaseUrl.replace(/\/$/, "");
+  // Production requests must stay in the nginx-proxied API namespace.  Do not
+  // consult the legacy VITE_API_BASE_URL variable: a stale value of "/" sends
+  // requests to the SPA location, which returns index.html instead of JSON.
+  const configuredBaseUrl = import.meta.env.VITE_API_URL?.trim() || "/api";
+  return configuredBaseUrl.replace(/\/$/, "") || "/api";
 }
 
 const API = axios.create({

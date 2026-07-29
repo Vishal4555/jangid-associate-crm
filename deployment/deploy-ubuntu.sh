@@ -22,9 +22,26 @@ sudo systemctl restart "$SERVICE_NAME"
 sudo systemctl reload nginx
 
 curl --fail --silent --show-error http://127.0.0.1:8000/openapi.json >/dev/null
+assert_json_api_response() {
+  local endpoint="$1"
+  local response
+  response=$(curl --silent --output /dev/null --write-out '%{http_code} %{content_type}' \
+    --header 'Accept: application/json' "http://127.0.0.1${endpoint}")
+
+  case "$response" in
+    200\ application/json*|401\ application/json*) ;;
+    *)
+      echo "Expected a JSON response from ${endpoint}, received: ${response}" >&2
+      exit 1
+      ;;
+  esac
+}
+
 login_status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
   --request POST http://127.0.0.1:8000/api/auth/login \
   --header 'Content-Type: application/json' \
   --data '{"username":"route-check","password":"invalid-password"}')
 test "$login_status" = 401
+assert_json_api_response /api/masters/banks
+assert_json_api_response /api/masters/branches
 echo "Deployment complete. The browser API base URL is /api."
