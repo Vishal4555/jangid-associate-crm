@@ -14,6 +14,7 @@ import app.db.base
 from app.api.auth import router as auth_router
 from app.api.dashboard import router as dashboard_router
 from app.api.masters import router as masters_router
+from app.api.users import router as users_router
 from app.db.database import Base, engine, get_db
 from app.models.case import Case
 from app.schemas.case import CaseCreate, CaseResponse, CaseUpdate, MessageResponse
@@ -65,9 +66,11 @@ Base.metadata.create_all(bind=engine)
 app.include_router(auth_router)
 app.include_router(masters_router)
 app.include_router(dashboard_router)
+app.include_router(users_router)
 app.include_router(auth_router, prefix="/api")
 app.include_router(masters_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
+app.include_router(users_router, prefix="/api")
 
 if (FRONTEND_DIST_DIR / "assets").exists():
     app.mount(

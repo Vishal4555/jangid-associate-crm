@@ -21,3 +21,14 @@ export interface LoginResponse {
   access_token: string;
   token_type: string;
 }
+
+export type UserPayload = {
+  full_name: string;
+  username: string;
+  email: string;
+  password?: string;
+  role: AuthRole;
+  is_active?: boolean;
+};
+
+export type ProfilePayload = Pick<UserPayload, "full_name" | "email">;

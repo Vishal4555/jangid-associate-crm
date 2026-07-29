@@ -33,6 +33,20 @@ class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class UserUpdate(BaseModel):
+    full_name: str | None = Field(default=None, min_length=1, max_length=200)
+    username: str | None = Field(default=None, min_length=3, max_length=100)
+    email: EmailStr | None = None
+    password: str | None = Field(default=None, min_length=8, max_length=128)
+    role: UserRole | None = None
+    is_active: bool | None = None
+
+
+class ProfileUpdate(BaseModel):
+    full_name: str | None = Field(default=None, min_length=1, max_length=200)
+    email: EmailStr | None = None
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"

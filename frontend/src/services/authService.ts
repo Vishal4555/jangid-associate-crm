@@ -1,6 +1,6 @@
 import API from "../api/caseApi";
 
-import type { AuthUser, LoginCredentials, LoginResponse } from "../types/auth";
+import type { AuthUser, LoginCredentials, LoginResponse, ProfilePayload } from "../types/auth";
 
 export async function loginWithPassword(
   credentials: Omit<LoginCredentials, "rememberMe">,
@@ -15,5 +15,10 @@ export async function loginWithPassword(
 
 export async function fetchCurrentUser(): Promise<AuthUser> {
   const response = await API.get<AuthUser>("/auth/me");
+  return response.data;
+}
+
+export async function updateCurrentUser(payload: ProfilePayload): Promise<AuthUser> {
+  const response = await API.put<AuthUser>("/auth/me", payload);
   return response.data;
 }

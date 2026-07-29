@@ -6,6 +6,10 @@ import LoginPage from "../pages/Login/LoginPage";
 import DashboardPage from "../pages/Dashboard/DashboardPage";
 import CasesPage from "../pages/Cases/CasesPage";
 import MastersPage from "../pages/Masters";
+import SearchPage from "../pages/Search/SearchPage";
+import ReportsPage from "../pages/Reports/ReportsPage";
+import UsersPage from "../pages/Users/UsersPage";
+import SettingsPage from "../pages/Settings/SettingsPage";
 
 export default function AppRoutes() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -66,6 +70,11 @@ export default function AppRoutes() {
             </RoleRoute>
           }
         />
+
+        <Route path="/search" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
+        <Route path="/reports" element={<RoleRoute allowedRoles={["Admin", "Manager"]}><ReportsPage /></RoleRoute>} />
+        <Route path="/users" element={<RoleRoute allowedRoles={["Admin"]}><UsersPage /></RoleRoute>} />
+        <Route path="/settings" element={<RoleRoute allowedRoles={["Admin", "Manager"]}><SettingsPage /></RoleRoute>} />
 
         <Route
           path="*"

@@ -29,13 +29,13 @@ const menus = [
   {
     icon: Search,
     name: "Search",
-    path: "/cases",
+    path: "/search",
     roles: ["Admin", "Manager", "Executive"],
   },
   {
     icon: BarChart3,
     name: "Reports",
-    path: "/dashboard",
+    path: "/reports",
     roles: ["Admin", "Manager"],
   },
   {
@@ -47,13 +47,13 @@ const menus = [
   {
     icon: Users,
     name: "Users",
-    path: "/dashboard",
+    path: "/users",
     roles: ["Admin"],
   },
   {
     icon: Settings,
     name: "Settings",
-    path: "/dashboard",
+    path: "/settings",
     roles: ["Admin", "Manager"],
   },
 ];
