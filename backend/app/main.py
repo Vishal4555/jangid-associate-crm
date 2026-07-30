@@ -26,6 +26,22 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    security_headers = {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
+    }
+    for header, value in security_headers.items():
+        if header not in response.headers:
+            response.headers[header] = value
+    return response
+
+
 FRONTEND_DIST_DIR = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 FRONTEND_INDEX_FILE = FRONTEND_DIST_DIR / "index.html"
 
