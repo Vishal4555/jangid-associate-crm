@@ -29,7 +29,7 @@ export default function CaseToolbar({
   onExport,
 }: Props) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">
+    <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-5">
 
@@ -46,7 +46,7 @@ export default function CaseToolbar({
 
           <button
             onClick={onAddCase}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+            className="flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-white shadow-lg shadow-orange-500/20 transition hover:-translate-y-0.5 hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Plus size={18} />
             New Case
@@ -55,7 +55,7 @@ export default function CaseToolbar({
           <button
             onClick={onRefresh}
             disabled={refreshing}
-            className="border border-gray-300 px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-100 disabled:opacity-60"
+            className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
             {refreshing ? "Refreshing..." : "Refresh"}
@@ -64,7 +64,7 @@ export default function CaseToolbar({
           <button
             onClick={onExport}
             disabled={exporting}
-            className="border border-gray-300 px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-100"
+            className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             <Download size={18} />
             {exporting ? "Exporting..." : "Export"}
@@ -87,7 +87,7 @@ export default function CaseToolbar({
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Search by Case No, Applicant, Mobile"
-            className="w-full border rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-slate-800 transition focus:border-orange-400 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
           />
 
         </div>
@@ -95,7 +95,7 @@ export default function CaseToolbar({
         <select
           value={statusFilter}
           onChange={(event) => onStatusChange(event.target.value as CaseStatusFilter)}
-          className="border rounded-lg p-2"
+          className="rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-slate-800 transition focus:border-orange-400 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
         >
           <option value="All">All Status</option>
           <option value="Pending">Pending</option>

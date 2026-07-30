@@ -139,7 +139,7 @@ export default function AddCaseModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg disabled:opacity-50"
+              className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg disabled:opacity-50"
             >
               {isSubmitting ? "Saving..." : "Save Case"}
             </button>

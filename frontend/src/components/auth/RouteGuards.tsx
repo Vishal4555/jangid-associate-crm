@@ -7,7 +7,7 @@ function FullScreenLoader({ label }: { label: string }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
       <div className="flex flex-col items-center gap-4 rounded-3xl border border-white/10 bg-white/5 px-8 py-7 shadow-2xl backdrop-blur">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-emerald-400" />
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-orange-400" />
         <p className="text-sm text-white/80">{label}</p>
       </div>
     </div>

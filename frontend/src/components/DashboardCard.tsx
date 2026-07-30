@@ -1,21 +1,5 @@
-type Props = {
-  title: string;
-  value: number;
-};
-
-export default function DashboardCard({
-  title,
-  value,
-}: Props) {
-  return (
-    <div className="bg-white rounded-xl shadow p-6">
-      <h3 className="text-gray-500">
-        {title}
-      </h3>
-
-      <h1 className="text-3xl font-bold mt-2 text-emerald-700">
-        {value.toLocaleString("en-IN")}
-      </h1>
-    </div>
-  );
+import type { LucideIcon } from "lucide-react";
+export default function DashboardCard({ title, value, icon: Icon, tone = "orange", detail }: { title: string; value: number; icon: LucideIcon; tone?: "orange" | "blue" | "green" | "slate"; detail: string }) {
+  const tones = { orange: "bg-orange-50 text-orange-600 dark:bg-orange-500/10", blue: "bg-blue-50 text-blue-600 dark:bg-blue-500/10", green: "bg-orange-50 text-orange-600 dark:bg-orange-500/10", slate: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" };
+  return <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"><div className="flex items-start justify-between"><div><p className="text-sm font-medium text-slate-500">{title}</p><p className="mt-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-white">{value.toLocaleString("en-IN")}</p></div><span className={`grid h-11 w-11 place-items-center rounded-xl ${tones[tone]}`}><Icon size={21}/></span></div><p className="mt-4 text-xs font-medium text-slate-500">{detail}</p></article>;
 }

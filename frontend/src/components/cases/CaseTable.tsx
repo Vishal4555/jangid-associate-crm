@@ -25,7 +25,7 @@ export default function CaseTable({
     return (
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-10">
         <div className="flex items-center justify-center gap-3 text-slate-600">
-          <span className="h-5 w-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+          <span className="h-5 w-5 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
           Loading cases...
         </div>
       </div>
@@ -50,12 +50,12 @@ export default function CaseTable({
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[920px]">
 
-          <thead className="bg-emerald-600 text-white">
+          <thead className="sticky top-0 z-10 bg-[#0F172A] text-white">
 
             <tr>
               <th className="p-3 text-left">Case No</th>
@@ -75,7 +75,7 @@ export default function CaseTable({
 
               <tr
                 key={item.id}
-                className="border-b hover:bg-gray-50"
+                className="border-b border-slate-100 transition hover:bg-orange-50/50 dark:border-slate-800 dark:hover:bg-slate-800/60"
               >
 
                 <td className="p-3 font-medium text-slate-700">{item.case_no}</td>

@@ -412,7 +412,7 @@ export default function MastersPage() {
             }}
             className={`rounded-2xl border px-4 py-3 text-left transition ${
               activeMaster === tab.key
-                ? "border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
+                ? "border-orange-500 bg-orange-500 text-white shadow-lg shadow-orange-500/20"
                 : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
             }`}
           >
@@ -441,7 +441,7 @@ export default function MastersPage() {
                   setPage(1);
                 }}
                 placeholder="Search masters..."
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:bg-white"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-orange-500 focus:bg-white"
               />
             </div>
 
@@ -458,7 +458,7 @@ export default function MastersPage() {
               <button
                 type="button"
                 onClick={openCreateDialog}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-700"
               >
                 <Plus size={16} />
                 Add {masterLabel(activeMaster).replace(/s$/, "")}
@@ -519,7 +519,7 @@ export default function MastersPage() {
                           <button
                             type="button"
                             onClick={() => openEditDialog(record)}
-                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700"
                           >
                             <PencilLine size={15} />
                             Edit
@@ -670,7 +670,7 @@ function MasterDialog({
               <select
                 value={values.bank_id}
                 onChange={(event) => onChange({ ...values, bank_id: event.target.value })}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-500 focus:bg-white"
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-orange-500 focus:bg-white"
                 required
               >
                 <option value="">Select bank</option>
@@ -694,7 +694,7 @@ function MasterDialog({
                 <input
                   value={values.full_name}
                   onChange={(event) => onChange({ ...values, full_name: event.target.value })}
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-500 focus:bg-white"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-orange-500 focus:bg-white"
                   required
                 />
               </label>
@@ -705,7 +705,7 @@ function MasterDialog({
                   <input
                     value={values.email}
                     onChange={(event) => onChange({ ...values, email: event.target.value })}
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-500 focus:bg-white"
+                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-orange-500 focus:bg-white"
                     type="email"
                   />
                 </label>
@@ -715,7 +715,7 @@ function MasterDialog({
                   <input
                     value={values.mobile}
                     onChange={(event) => onChange({ ...values, mobile: event.target.value })}
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-500 focus:bg-white"
+                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-orange-500 focus:bg-white"
                   />
                 </label>
               </div>
@@ -725,7 +725,7 @@ function MasterDialog({
                 <select
                   value={values.status}
                   onChange={(event) => onChange({ ...values, status: event.target.value as "Active" | "Inactive" })}
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-500 focus:bg-white"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-orange-500 focus:bg-white"
                 >
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
@@ -738,7 +738,7 @@ function MasterDialog({
               <input
                 value={values.name}
                 onChange={(event) => onChange({ ...values, name: event.target.value })}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-500 focus:bg-white"
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-orange-500 focus:bg-white"
                 required
               />
             </label>
@@ -749,7 +749,7 @@ function MasterDialog({
             <input
               value={values.code}
               onChange={(event) => onChange({ ...values, code: event.target.value })}
-              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-500 focus:bg-white"
+              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-orange-500 focus:bg-white"
             />
           </label>
 
@@ -764,7 +764,7 @@ function MasterDialog({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-2xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? "Saving..." : "Save"}
             </button>

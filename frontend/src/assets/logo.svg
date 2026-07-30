@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="title">
+  <title id="title">Jangid Associate</title>
+  <rect width="160" height="160" rx="36" fill="#0F172A"/>
+  <path d="M42 38h36v54c0 19-10 30-28 30-12 0-22-5-29-15l16-13c3 7 7 10 13 10 6 0 9-4 9-12V56H42V38Z" fill="#fff"/>
+  <path d="M84 122 104 38h18l20 84h-20l-3-16h-15l-3 16H81l3-13Zm23-32h9l-4-25-5 25Z" fill="#F97316"/>
+  <path d="M40 131h80" stroke="#F97316" stroke-linecap="round" stroke-width="6"/>
+</svg>

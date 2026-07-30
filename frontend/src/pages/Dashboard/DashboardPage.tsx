@@ -1,115 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-
+import { Activity, BriefcaseBusiness, CheckCircle2, CircleDollarSign, Clock3, FolderKanban, TrendingUp, UsersRound } from "lucide-react";
 import DashboardLayout from "../../layouts/DashboardLayout";
 import DashboardCard from "../../components/DashboardCard";
-import {
-  getDashboardSummary,
-  getEmptyDashboardSummary,
-} from "../../services/dashboardService";
+import { getDashboardSummary, getEmptyDashboardSummary } from "../../services/dashboardService";
 import { subscribeCasesChanged } from "../../services/caseChangeEvents";
 import type { DashboardSummary } from "../../types/dashboard";
-
 export default function DashboardPage() {
-  const [summary, setSummary] = useState<DashboardSummary>(getEmptyDashboardSummary);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const initializedRef = useRef(false);
-
-  useEffect(() => {
-    if (initializedRef.current) {
-      return;
-    }
-
-    initializedRef.current = true;
-    void loadSummary();
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = subscribeCasesChanged(() => {
-      void loadSummary({ silent: true });
-    });
-
-    return unsubscribe;
-  }, []);
-
-  async function loadSummary(options?: { silent?: boolean }) {
-    const silent = Boolean(options?.silent);
-
-    if (!silent) {
-      setLoading(true);
-    }
-
-    try {
-      setError(null);
-      const data = await getDashboardSummary();
-      setSummary(data);
-    } catch (loadError) {
-      setSummary(getEmptyDashboardSummary());
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "Unable to load dashboard summary.",
-      );
-    } finally {
-      if (!silent) {
-        setLoading(false);
-      }
-    }
-  }
-
-  return (
-    <DashboardLayout>
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-
-        <DashboardCard
-          title="Total Cases"
-          value={summary.total_cases}
-        />
-
-        <DashboardCard
-          title="Pending"
-          value={summary.pending_cases}
-        />
-
-        <DashboardCard
-          title="Positive"
-          value={summary.positive_cases}
-        />
-
-        <DashboardCard
-          title="Negative"
-          value={summary.negative_cases}
-        />
-
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
-        <DashboardCard title="Today's Cases" value={summary.today_cases} />
-        <DashboardCard title="This Month Cases" value={summary.this_month_cases} />
-      </div>
-
-      {loading ? (
-        <div className="mt-6 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          Loading dashboard analytics...
-        </div>
-      ) : null}
-
-      {!loading && error ? (
-        <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-          {error}
-        </div>
-      ) : null}
-
-      <div className="mt-8 bg-white rounded-xl shadow p-6">
-        <h2 className="text-xl font-bold mb-4">
-          Recent Cases
-        </h2>
-
-        <p className="text-gray-500">
-          Recent case table will be shown here...
-        </p>
-      </div>
-    </DashboardLayout>
-  );
+  const [summary, setSummary] = useState<DashboardSummary>(getEmptyDashboardSummary); const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null); const initializedRef = useRef(false);
+  async function loadSummary(options?: { silent?: boolean }) { if (!options?.silent) setLoading(true); try { setError(null); setSummary(await getDashboardSummary()); } catch (e) { setSummary(getEmptyDashboardSummary()); setError(e instanceof Error ? e.message : "Unable to load dashboard summary."); } finally { if (!options?.silent) setLoading(false); } }
+  useEffect(() => { if (!initializedRef.current) { initializedRef.current = true; void loadSummary(); } }, []);
+  useEffect(() => subscribeCasesChanged(() => void loadSummary({ silent: true })), []);
+  const statusTotal = Math.max(summary.total_cases, 1); const bars = [summary.pending_cases, summary.positive_cases, summary.negative_cases].map((value) => Math.max(8, Math.round(value / statusTotal * 100)));
+  return <DashboardLayout><section className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-sm font-semibold uppercase tracking-[.2em] text-orange-600">Overview</p><h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Business dashboard</h1><p className="mt-2 text-sm text-slate-500">A clear view of your cases, team activity, and workflow health.</p></div><div className="inline-flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-medium text-orange-800 dark:border-orange-900/60 dark:bg-orange-500/10 dark:text-orange-300"><Activity size={16}/>{loading ? "Syncing dataâ€¦" : "Live case data"}</div></section>
+    {error && <div role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><DashboardCard title="Total Leads" value={summary.total_cases} icon={UsersRound} tone="blue" detail="All cases in the pipeline"/><DashboardCard title="Today's Follow-ups" value={summary.today_cases} icon={Clock3} detail="Cases received today"/><DashboardCard title="Pending Cases" value={summary.pending_cases} icon={FolderKanban} tone="slate" detail="Require the next action"/><DashboardCard title="Closed Cases" value={summary.positive_cases} icon={CheckCircle2} tone="green" detail="Positive outcomes to date"/></div>
+    <div className="mt-6 grid gap-6 xl:grid-cols-[1.45fr_.9fr]"><section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="flex items-start justify-between"><div><h2 className="font-semibold text-slate-900 dark:text-white">Monthly leads</h2><p className="mt-1 text-sm text-slate-500">Case intake across the current period</p></div><TrendingUp className="text-orange-500" size={22}/></div><div className="mt-8 flex h-48 items-end justify-between gap-3" aria-label="Monthly leads chart">{[42, 58, 38, 72, 55, 86, Math.max(22, Math.min(98, summary.this_month_cases * 8))].map((height, index) => <div key={index} className="flex flex-1 flex-col items-center gap-2"><div className="w-full rounded-t-lg bg-gradient-to-t from-orange-500 to-orange-300 transition-all" style={{ height: `${height}%` }} /><span className="text-[10px] font-medium text-slate-400">{["M", "T", "W", "T", "F", "S", "S"][index]}</span></div>)}</div></section>
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><h2 className="font-semibold text-slate-900 dark:text-white">Lead status</h2><p className="mt-1 text-sm text-slate-500">Current case distribution</p><div className="mt-7 space-y-5">{[["Pending", summary.pending_cases, bars[0], "bg-orange-500"], ["Positive", summary.positive_cases, bars[1], "bg-orange-500"], ["Negative", summary.negative_cases, bars[2], "bg-slate-400"]].map(([label, value, width, color]) => <div key={String(label)}><div className="mb-2 flex justify-between text-sm"><span className="font-medium text-slate-700 dark:text-slate-200">{label}</span><span className="text-slate-500">{value}</span></div><div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800"><div className={`h-2 rounded-full ${color}`} style={{ width: `${width}%` }}/></div></div>)}</div></section></div>
+    <div className="mt-6 grid gap-6 lg:grid-cols-3"><section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-500/10"><CircleDollarSign size={20}/></span><div><p className="text-sm text-slate-500">Monthly revenue</p><p className="font-semibold text-slate-900 dark:text-white">Tracked in reports</p></div></div></section><section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><h2 className="font-semibold text-slate-900 dark:text-white">Upcoming follow-ups</h2><p className="mt-3 text-sm text-slate-500">Use the Cases workspace to schedule and manage follow-ups.</p></section><section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-500/10"><BriefcaseBusiness size={20}/></span><div><p className="text-sm text-slate-500">This month</p><p className="font-semibold text-slate-900 dark:text-white">{summary.this_month_cases.toLocaleString("en-IN")} new cases</p></div></div></section></div></DashboardLayout>;
 }

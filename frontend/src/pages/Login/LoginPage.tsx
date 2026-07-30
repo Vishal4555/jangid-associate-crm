@@ -1,3 +1,4 @@
+import { Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -11,12 +12,12 @@ import {
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login, isAuthenticated, isLoading } = useAuth();
-  const rememberedUsername = useMemo(() => getRememberedUsername(), []);
-
-  const [usernameOrEmail, setUsernameOrEmail] = useState(rememberedUsername);
+  const remembered = useMemo(() => getRememberedUsername(), []);
+  const [usernameOrEmail, setUsernameOrEmail] = useState(remembered);
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(Boolean(rememberedUsername));
+  const [rememberMe, setRememberMe] = useState(Boolean(remembered));
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,152 +28,194 @@ export default function LoginPage() {
 
   async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     setLoading(true);
     setErrorMessage(null);
 
     try {
-      await login({
-        usernameOrEmail,
-        password,
-        rememberMe,
-      });
-
+      await login({ usernameOrEmail, password, rememberMe });
       if (rememberMe) {
         setRememberedUsername(usernameOrEmail);
       } else {
         clearRememberedUsername();
       }
-
       navigate("/dashboard", { replace: true });
     } catch (error) {
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to sign in. Please try again.",
+        error instanceof Error ? error.message : "Unable to sign in. Please try again.",
       );
     } finally {
       setLoading(false);
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-        <div className="rounded-3xl border border-white/10 bg-white/5 px-8 py-7 shadow-2xl backdrop-blur">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-emerald-400" />
-          <p className="mt-4 text-sm text-white/75">Preparing your session...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.18),_transparent_36%),radial-gradient(circle_at_bottom_right,_rgba(148,163,184,0.15),_transparent_32%),linear-gradient(135deg,_#020617_0%,_#0f172a_45%,_#111827_100%)]" />
-      <div className="absolute inset-0 opacity-40 [background-image:linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] [background-size:48px_48px]" />
+    <main className="relative grid min-h-screen overflow-hidden bg-[#0F172A] lg:grid-cols-[1.08fr_.92fr]">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(249,115,22,.22),transparent_26%),radial-gradient(circle_at_70%_88%,rgba(59,130,246,.13),transparent_30%)]"
+      />
 
-      <div className="relative z-10 grid min-h-screen lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="flex items-center px-6 py-12 sm:px-10 lg:px-16">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-medium text-emerald-200">
-              JANGID ASSOCIATE CRM
-            </div>
-
-            <h1 className="mt-8 text-4xl font-semibold tracking-tight text-white sm:text-5xl lg:text-6xl">
-              Secure access for every role in the CRM.
-            </h1>
-
-            <p className="mt-6 max-w-xl text-base leading-7 text-slate-300 sm:text-lg">
-              Sign in with your username or email, restore your session automatically,
-              and keep role-based access ready for the authenticated workspace.
-            </p>
-
-            <div className="mt-10 grid gap-4 sm:grid-cols-3">
-              {[
-                ["JWT sessions", "Stored in localStorage and restored on refresh."],
-                ["Auto logout", "401 responses clear the session immediately."],
-                ["Role aware", "Navigation hides menus you should not see."],
-              ].map(([title, description]) => (
-                <div
-                  key={title}
-                  className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur"
-                >
-                  <div className="text-sm font-semibold text-white">{title}</div>
-                  <p className="mt-2 text-sm leading-6 text-slate-300">{description}</p>
-                </div>
-              ))}
+      <section className="relative hidden min-h-screen flex-col justify-between px-12 py-10 text-white lg:flex xl:px-16 xl:py-12">
+        <div>
+          <div className="flex items-center gap-4">
+            <span className="grid h-14 w-14 place-items-center rounded-2xl border border-white/15 bg-white/10 shadow-lg shadow-slate-950/20">
+              <img
+                src="/branding/ja-logo.png"
+                alt="Jangid Associate CRM"
+                className="h-11 w-11 object-contain"
+              />
+            </span>
+            <div>
+              <p className="font-bold tracking-[.12em]">Jangid Associate CRM</p>
+              <p className="mt-1 text-xs font-medium tracking-[.14em] text-orange-300">
+                CUSTOMER RELATIONSHIP MANAGEMENT
+              </p>
             </div>
           </div>
-        </section>
 
-        <section className="flex items-center justify-center px-6 py-12 sm:px-10 lg:px-16">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/75 p-8 shadow-[0_30px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+          <div className="mt-24 max-w-2xl xl:mt-32">
+            <p className="text-xs font-semibold uppercase tracking-[.28em] text-orange-300">
+              Business, organised
+            </p>
+            <h1 className="mt-6 text-4xl font-bold leading-[1.12] tracking-tight xl:text-5xl">
+              Every customer relationship, handled with confidence.
+            </h1>
+            <p className="mt-6 max-w-xl text-base leading-8 text-slate-300 xl:text-lg">
+              A focused workspace for your team to track cases, follow-ups, and outcomes.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 text-sm font-medium text-slate-300">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-orange-500/15 text-orange-300">
+            <ShieldCheck size={19} aria-hidden="true" />
+          </span>
+          Secure, role-aware workspace
+        </div>
+      </section>
+
+      <section
+        aria-labelledby="login-heading"
+        className="relative flex min-h-screen items-center justify-center bg-slate-50/95 px-5 py-10 dark:bg-slate-950/95 sm:px-8"
+      >
+        <div className="w-full max-w-md">
+          <div className="mb-8 flex items-center justify-center gap-3 lg:hidden">
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-900 shadow-lg shadow-slate-900/20 dark:bg-white">
+              <img
+                src="/branding/ja-logo.png"
+                alt="Jangid Associate CRM"
+                className="h-10 w-10 object-contain"
+              />
+            </span>
             <div>
-              <p className="text-sm uppercase tracking-[0.35em] text-emerald-300/90">
-                Welcome back
-              </p>
-              <h2 className="mt-3 text-3xl font-semibold text-white">Login</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-300">
-                Use the credentials assigned to your CRM account.
+              <p className="text-sm font-bold tracking-[.14em] text-slate-900 dark:text-white">
+                Jangid Associate CRM
               </p>
             </div>
+          </div>
 
-            <form className="mt-8 space-y-4" onSubmit={handleLogin}>
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-200">
-                  Username or Email
-                </label>
-                <input
-                  value={usernameOrEmail}
-                  onChange={(event) => setUsernameOrEmail(event.target.value)}
-                  autoComplete="username"
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/20"
-                  placeholder="Enter your username or email"
-                />
-              </div>
+          <div className="rounded-3xl border border-slate-200/80 bg-white p-7 shadow-2xl shadow-slate-950/10 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/30 sm:p-9">
+            <p className="text-xs font-semibold uppercase tracking-[.22em] text-orange-600 dark:text-orange-400">
+              Welcome back
+            </p>
+            <h2
+              id="login-heading"
+              className="mt-3 text-3xl font-bold tracking-tight text-slate-950 dark:text-white"
+            >
+              Sign in to your CRM
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
+              Continue to the Jangid Associate CRM customer workspace.
+            </p>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-200">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  autoComplete="current-password"
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/20"
-                  placeholder="Enter your password"
-                />
-              </div>
+            <form className="mt-8 space-y-5" onSubmit={handleLogin}>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Username or email
+                <span className="relative mt-2 block">
+                  <Mail
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                    size={18}
+                  />
+                  <input
+                    required
+                    value={usernameOrEmail}
+                    onChange={(event) => setUsernameOrEmail(event.target.value)}
+                    autoComplete="username"
+                    placeholder="Enter username or email"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-slate-900 shadow-sm transition placeholder:text-slate-400 hover:border-slate-300 focus:border-orange-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:hover:border-slate-600 dark:focus:border-orange-500"
+                  />
+                </span>
+              </label>
 
-              <label className="flex cursor-pointer items-center gap-3 text-sm text-slate-300">
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Password
+                <span className="relative mt-2 block">
+                  <LockKeyhole
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                    size={18}
+                  />
+                  <input
+                    required
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    autoComplete="current-password"
+                    placeholder="Enter password"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-12 text-slate-900 shadow-sm transition placeholder:text-slate-400 hover:border-slate-300 focus:border-orange-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:hover:border-slate-600 dark:focus:border-orange-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((value) => !value)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-pressed={showPassword}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200/70 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                  >
+                    {showPassword ? (
+                      <EyeOff size={18} aria-hidden="true" />
+                    ) : (
+                      <Eye size={18} aria-hidden="true" />
+                    )}
+                  </button>
+                </span>
+              </label>
+
+              <label className="flex cursor-pointer items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
                 <input
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(event) => setRememberMe(event.target.checked)}
-                  className="h-4 w-4 rounded border-slate-500 bg-transparent text-emerald-500 focus:ring-emerald-400/30"
+                  className="h-4 w-4 rounded border-slate-300 accent-orange-500"
                 />
-                Remember Me
+                Remember me on this device
               </label>
 
               {errorMessage && (
-                <div className="rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                <div
+                  role="alert"
+                  aria-live="polite"
+                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-300"
+                >
                   {errorMessage}
                 </div>
               )}
 
               <button
                 type="submit"
-                disabled={loading}
-                className="flex w-full items-center justify-center rounded-2xl bg-emerald-500 px-4 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={loading || isLoading}
+                className="flex w-full items-center justify-center rounded-xl bg-orange-500 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-orange-600 hover:shadow-orange-500/35 active:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? "Signing in..." : "Login"}
+                {loading ? "Signing in…" : "Sign in securely"}
               </button>
             </form>
+
+            <p className="mt-8 text-center text-xs text-slate-400 dark:text-slate-500">
+              © {new Date().getFullYear()} Jangid Associate CRM. All rights reserved.
+            </p>
           </div>
-        </section>
-      </div>
-    </div>
+        </div>
+      </section>
+    </main>
   );
 }
