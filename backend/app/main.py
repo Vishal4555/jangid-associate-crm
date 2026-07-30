@@ -15,8 +15,10 @@ from app.api.auth import router as auth_router
 from app.api.dashboard import router as dashboard_router
 from app.api.masters import router as masters_router
 from app.api.users import router as users_router
+from app.core.security import get_current_active_user
 from app.db.database import Base, engine, get_db
 from app.models.case import Case
+from app.models.user import User
 from app.schemas.case import CaseCreate, CaseResponse, CaseUpdate, MessageResponse
 
 app = FastAPI(
@@ -91,7 +93,7 @@ def root():
 
 
 @app.get("/db-test")
-def db_test():
+def db_test(_: User = Depends(get_current_active_user)):
     with engine.connect() as conn:
         result = conn.execute(text("SELECT version();"))
 
@@ -103,7 +105,11 @@ def db_test():
 
 @app.get("/cases", response_model=list[CaseResponse])
 @app.get("/api/cases", response_model=list[CaseResponse], include_in_schema=False)
-def get_cases(request: Request, db: Session = Depends(get_db)):
+def get_cases(
+    request: Request,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_active_user),
+):
     accepts_html = "text/html" in request.headers.get("accept", "")
     if FRONTEND_INDEX_FILE.exists() and accepts_html:
         return FileResponse(FRONTEND_INDEX_FILE)
@@ -114,7 +120,11 @@ def get_cases(request: Request, db: Session = Depends(get_db)):
 
 @app.get("/cases/{id}", response_model=CaseResponse)
 @app.get("/api/cases/{id}", response_model=CaseResponse, include_in_schema=False)
-def get_case(id: int, db: Session = Depends(get_db)):
+def get_case(
+    id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_active_user),
+):
     case = db.get(Case, id)
     if case is None:
         raise HTTPException(
@@ -131,7 +141,11 @@ def get_case(id: int, db: Session = Depends(get_db)):
     status_code=status.HTTP_201_CREATED,
     include_in_schema=False,
 )
-def create_case(case: CaseCreate, db: Session = Depends(get_db)):
+def create_case(
+    case: CaseCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_active_user),
+):
     new_case = Case(**case.model_dump())
 
     try:
@@ -150,7 +164,12 @@ def create_case(case: CaseCreate, db: Session = Depends(get_db)):
 
 @app.put("/cases/{id}", response_model=CaseResponse)
 @app.put("/api/cases/{id}", response_model=CaseResponse, include_in_schema=False)
-def update_case(id: int, case_update: CaseUpdate, db: Session = Depends(get_db)):
+def update_case(
+    id: int,
+    case_update: CaseUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_active_user),
+):
     existing_case = db.get(Case, id)
     if existing_case is None:
         raise HTTPException(
@@ -177,7 +196,11 @@ def update_case(id: int, case_update: CaseUpdate, db: Session = Depends(get_db))
 
 @app.delete("/cases/{id}", response_model=MessageResponse)
 @app.delete("/api/cases/{id}", response_model=MessageResponse, include_in_schema=False)
-def delete_case(id: int, db: Session = Depends(get_db)):
+def delete_case(
+    id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_active_user),
+):
     existing_case = db.get(Case, id)
     if existing_case is None:
         raise HTTPException(
