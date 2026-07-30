@@ -1,9 +1,10 @@
+import logging
 from pathlib import Path
 import os
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
@@ -21,10 +22,21 @@ from app.models.case import Case
 from app.models.user import User
 from app.schemas.case import CaseCreate, CaseResponse, CaseUpdate, MessageResponse
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI(
     title="JANGID ASSOCIATE CRM",
     version="1.0.0"
 )
+
+
+@app.exception_handler(Exception)
+async def handle_unexpected_exception(request: Request, exc: Exception):
+    logger.exception("Unhandled exception while processing request", exc_info=exc)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Internal server error"},
+    )
 
 
 @app.middleware("http")
