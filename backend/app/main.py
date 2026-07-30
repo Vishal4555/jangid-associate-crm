@@ -23,6 +23,7 @@ from app.models.user import User
 from app.schemas.case import CaseCreate, CaseResponse, CaseUpdate, MessageResponse
 
 logger = logging.getLogger(__name__)
+MAX_REQUEST_BODY_SIZE = 2 * 1024 * 1024
 
 app = FastAPI(
     title="JANGID ASSOCIATE CRM",
@@ -37,6 +38,24 @@ async def handle_unexpected_exception(request: Request, exc: Exception):
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"detail": "Internal server error"},
     )
+
+
+@app.middleware("http")
+async def limit_request_body_size(request: Request, call_next):
+    if request.method != "GET":
+        content_length = request.headers.get("Content-Length")
+        if content_length:
+            try:
+                body_size = int(content_length)
+            except ValueError:
+                pass
+            else:
+                if body_size > MAX_REQUEST_BODY_SIZE:
+                    return JSONResponse(
+                        status_code=413,
+                        content={"detail": "Request body too large"},
+                    )
+    return await call_next(request)
 
 
 @app.middleware("http")
