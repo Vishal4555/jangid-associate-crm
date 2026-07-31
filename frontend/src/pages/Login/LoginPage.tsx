@@ -58,11 +58,11 @@ export default function LoginPage() {
       <section className="relative hidden min-h-screen flex-col justify-between px-12 py-10 text-white lg:flex xl:px-16 xl:py-12">
         <div>
           <div className="flex items-center gap-4">
-            <span className="grid h-14 w-14 place-items-center rounded-2xl border border-white/15 bg-white/10 shadow-lg shadow-slate-950/20">
+            <span className="grid h-16 w-16 place-items-center rounded-2xl border border-white/15 bg-white/10 shadow-lg shadow-slate-950/20">
               <img
                 src="/branding/ja-logo.png"
                 alt="Jangid Associate CRM"
-                className="h-11 w-11 object-contain"
+                className="h-16 w-16 object-contain"
               />
             </span>
             <div>
@@ -100,11 +100,11 @@ export default function LoginPage() {
       >
         <div className="w-full max-w-md">
           <div className="mb-8 flex items-center justify-center gap-3 lg:hidden">
-            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-900 shadow-lg shadow-slate-900/20 dark:bg-white">
+            <span className="grid h-16 w-16 place-items-center rounded-2xl bg-slate-900 shadow-lg shadow-slate-900/20 dark:bg-white">
               <img
                 src="/branding/ja-logo.png"
                 alt="Jangid Associate CRM"
-                className="h-10 w-10 object-contain"
+                className="h-16 w-16 object-contain"
               />
             </span>
             <div>

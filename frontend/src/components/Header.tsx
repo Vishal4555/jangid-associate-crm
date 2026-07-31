@@ -34,11 +34,11 @@ export default function Header({ onMenu }: { onMenu: () => void }) {
         >
           <Menu size={21} aria-hidden="true" />
         </button>
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-900 lg:hidden dark:bg-white">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-900 lg:hidden dark:bg-white">
           <img
             src="/branding/ja-logo.png"
             alt="Jangid Associate CRM"
-            className="h-8 w-8 object-contain"
+            className="h-10 w-10 object-contain"
           />
         </span>
         <div className="min-w-0">

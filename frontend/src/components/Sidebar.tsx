@@ -90,7 +90,7 @@ export default function Sidebar({
             <img
               src="/branding/ja-logo.png"
               alt="Jangid Associate CRM"
-              className="h-9 w-9 object-contain"
+              className="h-10 w-10 object-contain"
             />
           </span>
 
