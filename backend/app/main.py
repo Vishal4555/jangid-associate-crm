@@ -14,6 +14,7 @@ import app.db.base
 
 from app.api.auth import router as auth_router
 from app.api.dashboard import router as dashboard_router
+from app.api.follow_ups import router as follow_ups_router
 from app.api.masters import router as masters_router
 from app.api.users import router as users_router
 from app.core.security import get_current_active_user
@@ -120,6 +121,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(masters_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
+app.include_router(follow_ups_router)
 
 if (FRONTEND_DIST_DIR / "assets").exists():
     app.mount(

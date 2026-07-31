@@ -268,6 +268,26 @@ export default function CaseForm({ register, errors, watch, setValue }: Props) {
 
           <textarea rows={4} {...register("remarks")} className="w-full rounded-lg border px-3 py-2" />
         </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium">Next Follow-up Date &amp; Time</label>
+
+          <input
+            type="datetime-local"
+            {...register("next_follow_up_at")}
+            className="w-full rounded-lg border px-3 py-2"
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <label className="mb-1 block text-sm font-medium">Follow-up Note</label>
+
+          <textarea
+            rows={3}
+            {...register("follow_up_note")}
+            className="w-full rounded-lg border px-3 py-2"
+          />
+        </div>
       </div>
     </div>
   );

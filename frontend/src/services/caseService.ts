@@ -6,7 +6,7 @@ import type {
   DeleteCaseResponse,
 } from "../types/case";
 
-type CaseApiResponse = {
+export type CaseApiResponse = {
   id: number;
   case_no: string;
   receive_date: string | null;
@@ -23,9 +23,11 @@ type CaseApiResponse = {
   negative_reason: string | null;
   landmark: string | null;
   remarks: string | null;
+  next_follow_up_at: string | null;
+  follow_up_note: string | null;
 };
 
-function mapCase(data: CaseApiResponse): Case {
+export function mapCaseResponse(data: CaseApiResponse): Case {
   return {
     id: data.id,
     case_no: data.case_no,
@@ -46,6 +48,8 @@ function mapCase(data: CaseApiResponse): Case {
     negative_reason: data.negative_reason ?? "",
     landmark: data.landmark ?? "",
     remarks: data.remarks ?? "",
+    next_follow_up_at: data.next_follow_up_at ?? "",
+    follow_up_note: data.follow_up_note ?? "",
   };
 }
 
@@ -53,6 +57,9 @@ function cleanPayload(payload: CaseFormPayload): CaseFormPayload {
   const entries = Object.entries(payload).map(([key, value]) => {
     if (typeof value === "string") {
       const trimmed = value.trim();
+      if (key === "next_follow_up_at" || key === "follow_up_note") {
+        return [key, trimmed === "" ? null : trimmed];
+      }
       return [key, trimmed === "" ? undefined : trimmed];
     }
     return [key, value];
@@ -82,7 +89,7 @@ function toErrorMessage(error: unknown): Error {
 export const getCases = async (): Promise<Case[]> => {
   try {
     const response = await API.get<CaseApiResponse[]>("/cases");
-    return Array.isArray(response.data) ? response.data.map(mapCase) : [];
+    return Array.isArray(response.data) ? response.data.map(mapCaseResponse) : [];
   } catch (error) {
     throw toErrorMessage(error);
   }
@@ -91,7 +98,7 @@ export const getCases = async (): Promise<Case[]> => {
 export const getCaseById = async (id: number): Promise<Case> => {
   try {
     const response = await API.get<CaseApiResponse>(`/cases/${id}`);
-    return mapCase(response.data);
+    return mapCaseResponse(response.data);
   } catch (error) {
     throw toErrorMessage(error);
   }
@@ -100,7 +107,7 @@ export const getCaseById = async (id: number): Promise<Case> => {
 export const createCase = async (data: CaseFormPayload): Promise<Case> => {
   try {
     const response = await API.post<CaseApiResponse>("/cases", cleanPayload(data));
-    const createdCase = mapCase(response.data);
+    const createdCase = mapCaseResponse(response.data);
     emitCasesChanged();
     return createdCase;
   } catch (error) {
@@ -114,7 +121,7 @@ export const updateCase = async (
 ): Promise<Case> => {
   try {
     const response = await API.put<CaseApiResponse>(`/cases/${id}`, cleanPayload(data));
-    const updatedCase = mapCase(response.data);
+    const updatedCase = mapCaseResponse(response.data);
     emitCasesChanged();
     return updatedCase;
   } catch (error) {

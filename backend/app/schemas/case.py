@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
@@ -19,6 +19,8 @@ class CaseBase(BaseModel):
     negative_reason: Optional[str] = None
     landmark: Optional[str] = None
     remarks: Optional[str] = None
+    next_follow_up_at: Optional[datetime] = None
+    follow_up_note: Optional[str] = None
 
 
 class CaseCreate(CaseBase):

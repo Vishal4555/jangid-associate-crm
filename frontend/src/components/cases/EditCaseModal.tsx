@@ -34,6 +34,8 @@ const defaultValues: CaseFormData = {
 	negative_reason: "",
 	landmark: "",
 	remarks: "",
+	next_follow_up_at: "",
+	follow_up_note: "",
 };
 
 function toFormValues(item: Case): CaseFormData {
@@ -53,6 +55,8 @@ function toFormValues(item: Case): CaseFormData {
 		negative_reason: item.negative_reason,
 		landmark: item.landmark,
 		remarks: item.remarks,
+		next_follow_up_at: item.next_follow_up_at.slice(0, 16),
+		follow_up_note: item.follow_up_note,
 	};
 }
 

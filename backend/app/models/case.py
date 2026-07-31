@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date
+from sqlalchemy import Column, Date, DateTime, Integer, String, Text
 
 from app.db.database import Base
 
@@ -37,3 +37,7 @@ class Case(Base):
     landmark = Column(String(300))
 
     remarks = Column(String(1000))
+
+    next_follow_up_at = Column(DateTime, nullable=True)
+
+    follow_up_note = Column(Text, nullable=True)

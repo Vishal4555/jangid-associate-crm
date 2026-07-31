@@ -39,6 +39,10 @@ export const caseSchema = z.object({
   landmark: z.string().optional(),
 
   remarks: z.string().optional(),
+
+  next_follow_up_at: z.string().optional(),
+
+  follow_up_note: z.string().optional(),
 });
 
 export type CaseFormData = z.infer<typeof caseSchema>;
