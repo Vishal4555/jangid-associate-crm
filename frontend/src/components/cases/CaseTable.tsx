@@ -53,18 +53,21 @@ export default function CaseTable({
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[920px]">
+        <table className="w-full min-w-[1380px]">
 
           <thead className="sticky top-0 z-10 bg-[#0F172A] text-white">
 
             <tr>
               <th className="p-3 text-left">Case No</th>
               <th className="p-3 text-left">Receive Date</th>
+              <th className="p-3 text-left">Closed Date</th>
               <th className="p-3 text-left">Applicant</th>
+              <th className="p-3 text-left">Address</th>
               <th className="p-3 text-left">Bank</th>
+              <th className="p-3 text-left">City</th>
               <th className="p-3 text-left">Executive</th>
               <th className="p-3 text-left">Status</th>
-              <th className="p-3 text-center">Action</th>
+              <th className="sticky right-0 bg-[#0F172A] p-3 text-center">Action</th>
             </tr>
 
           </thead>
@@ -82,9 +85,22 @@ export default function CaseTable({
 
                 <td className="p-3">{item.receive_date || "-"}</td>
 
+                <td className="p-3">-</td>
+
                 <td className="p-3">{item.applicant || "-"}</td>
 
+                <td className="max-w-72 p-3">
+                  <span
+                    className="block truncate whitespace-nowrap"
+                    title={item.address || undefined}
+                  >
+                    {item.address || "-"}
+                  </span>
+                </td>
+
                 <td className="p-3">{item.bank || "-"}</td>
+
+                <td className="p-3">{item.city || "-"}</td>
 
                 <td className="p-3">{item.executive || "-"}</td>
 
@@ -92,7 +108,7 @@ export default function CaseTable({
                   <StatusBadge status={item.status} />
                 </td>
 
-                <td className="p-3">
+                <td className="sticky right-0 bg-white p-3 dark:bg-slate-900">
 
                   <div className="flex justify-center gap-2">
 
