@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import DashboardCard from "../../components/DashboardCard";
+import PendingAgeingSection from "../../components/dashboard/PendingAgeingSection";
 import DashboardLayout from "../../layouts/DashboardLayout";
 import { subscribeCasesChanged } from "../../services/caseChangeEvents";
 import { getDashboardSummary, getEmptyDashboardSummary } from "../../services/dashboardService";
@@ -259,6 +260,7 @@ export default function DashboardPage() {
           </div>
         </section>
       </div>
+      <PendingAgeingSection />
     </DashboardLayout>
   );
 }

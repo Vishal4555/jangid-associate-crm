@@ -60,3 +60,25 @@ export interface PerformanceFilters {
   city?: string;
   bank?: string;
 }
+
+export interface PendingAgeingMetrics {
+  total_pending: number;
+  zero_to_two: number;
+  three_to_five: number;
+  six_to_ten: number;
+  eleven_plus: number;
+}
+
+export interface ExecutivePendingAgeing extends PendingAgeingMetrics {
+  executive: string;
+}
+
+export interface CityPendingAgeing extends PendingAgeingMetrics {
+  city: string;
+}
+
+export interface PendingAgeing {
+  summary: PendingAgeingMetrics;
+  executives: ExecutivePendingAgeing[];
+  cities: CityPendingAgeing[];
+}

@@ -12,6 +12,10 @@ from app.schemas.dashboard import (
     DashboardPerformanceResponse,
     DashboardSummaryResponse,
     ExecutivePerformanceResponse,
+    ExecutivePendingAgeingResponse,
+    CityPendingAgeingResponse,
+    PendingAgeingResponse,
+    PendingAgeingSummaryResponse,
     PerformanceSummaryResponse,
 )
 
@@ -29,6 +33,7 @@ TAT_CONDITION = and_(
 )
 TAT_DAYS = Case.closed_date - Case.receive_date
 TAT_VALUE = case((TAT_CONDITION, TAT_DAYS), else_=None)
+PENDING_AGE_DAYS = func.current_date() - Case.receive_date
 
 
 def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
@@ -174,5 +179,54 @@ def get_dashboard_performance(
                 average_tat=_rounded(row.average_tat),
             )
             for row in bank_rows
+        ],
+    )
+
+
+def _ageing_metrics():
+    dated = Case.receive_date.is_not(None)
+    return (
+        func.count(Case.id).label("total_pending"),
+        func.sum(case((and_(dated, PENDING_AGE_DAYS.between(0, 2)), 1), else_=0)).label("zero_to_two"),
+        func.sum(case((and_(dated, PENDING_AGE_DAYS.between(3, 5)), 1), else_=0)).label("three_to_five"),
+        func.sum(case((and_(dated, PENDING_AGE_DAYS.between(6, 10)), 1), else_=0)).label("six_to_ten"),
+        func.sum(case((and_(dated, PENDING_AGE_DAYS >= 11), 1), else_=0)).label("eleven_plus"),
+    )
+
+
+def _ageing_values(row) -> dict[str, int]:
+    return {
+        "total_pending": row.total_pending or 0,
+        "zero_to_two": row.zero_to_two or 0,
+        "three_to_five": row.three_to_five or 0,
+        "six_to_ten": row.six_to_ten or 0,
+        "eleven_plus": row.eleven_plus or 0,
+    }
+
+
+def _group_pending_ageing(db: Session, field):
+    label = func.coalesce(func.nullif(func.trim(field), ""), "Unassigned").label("name")
+    query = (
+        select(label, *_ageing_metrics())
+        .where(PENDING_CONDITION)
+        .group_by(label)
+        .order_by(func.sum(case((and_(Case.receive_date.is_not(None), PENDING_AGE_DAYS >= 11), 1), else_=0)).desc(), func.count(Case.id).desc())
+    )
+    return db.execute(query).all()
+
+
+def get_pending_ageing(db: Session) -> PendingAgeingResponse:
+    summary = db.execute(select(*_ageing_metrics()).where(PENDING_CONDITION)).one()
+    executives = _group_pending_ageing(db, Case.executive)
+    cities = _group_pending_ageing(db, Case.city)
+    return PendingAgeingResponse(
+        summary=PendingAgeingSummaryResponse(**_ageing_values(summary)),
+        executives=[
+            ExecutivePendingAgeingResponse(executive=row.name, **_ageing_values(row))
+            for row in executives
+        ],
+        cities=[
+            CityPendingAgeingResponse(city=row.name, **_ageing_values(row))
+            for row in cities
         ],
     )

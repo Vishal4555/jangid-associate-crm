@@ -54,3 +54,25 @@ class DashboardPerformanceResponse(BaseModel):
     executives: list[ExecutivePerformanceResponse]
     cities: list[CityPerformanceResponse]
     banks: list[BankPerformanceResponse]
+
+
+class PendingAgeingSummaryResponse(BaseModel):
+    total_pending: int = 0
+    zero_to_two: int = 0
+    three_to_five: int = 0
+    six_to_ten: int = 0
+    eleven_plus: int = 0
+
+
+class ExecutivePendingAgeingResponse(PendingAgeingSummaryResponse):
+    executive: str
+
+
+class CityPendingAgeingResponse(PendingAgeingSummaryResponse):
+    city: str
+
+
+class PendingAgeingResponse(BaseModel):
+    summary: PendingAgeingSummaryResponse
+    executives: list[ExecutivePendingAgeingResponse]
+    cities: list[CityPendingAgeingResponse]

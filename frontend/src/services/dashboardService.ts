@@ -2,6 +2,7 @@ import API from "../api/caseApi";
 import type {
   DashboardPerformance,
   DashboardSummary,
+  PendingAgeing,
   PerformanceFilters,
 } from "../types/dashboard";
 
@@ -58,6 +59,15 @@ export const getDashboardPerformance = async (
     const response = await API.get<DashboardPerformance>("/dashboard/performance", {
       params: filters,
     });
+    return response.data;
+  } catch (error) {
+    throw toErrorMessage(error);
+  }
+};
+
+export const getPendingAgeing = async (): Promise<PendingAgeing> => {
+  try {
+    const response = await API.get<PendingAgeing>("/dashboard/pending-ageing");
     return response.data;
   } catch (error) {
     throw toErrorMessage(error);

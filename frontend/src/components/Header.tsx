@@ -1,9 +1,10 @@
-import { Bell, CalendarDays, ChevronDown, LogOut, Menu, Moon, Sun } from "lucide-react";
+import { CalendarDays, ChevronDown, LogOut, Menu, Moon, Sun } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import NotificationCenter from "./NotificationCenter";
 
 export default function Header({ onMenu }: { onMenu: () => void }) {
   const navigate = useNavigate();
@@ -69,17 +70,7 @@ export default function Header({ onMenu }: { onMenu: () => void }) {
             <Moon size={18} aria-hidden="true" />
           )}
         </button>
-        <button
-          type="button"
-          aria-label="Notifications"
-          className="relative grid h-10 w-10 place-items-center rounded-xl text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-        >
-          <Bell size={18} aria-hidden="true" />
-          <span
-            aria-hidden="true"
-            className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-orange-500 ring-2 ring-white dark:ring-slate-950"
-          />
-        </button>
+        <NotificationCenter />
 
         <div className="relative">
           <button

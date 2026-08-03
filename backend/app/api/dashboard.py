@@ -6,8 +6,16 @@ from sqlalchemy.orm import Session
 from app.core.security import get_current_active_user
 from app.db.database import get_db
 from app.models.user import User
-from app.schemas.dashboard import DashboardPerformanceResponse, DashboardSummaryResponse
-from app.services.dashboard_service import get_dashboard_performance, get_dashboard_summary
+from app.schemas.dashboard import (
+    DashboardPerformanceResponse,
+    DashboardSummaryResponse,
+    PendingAgeingResponse,
+)
+from app.services.dashboard_service import (
+    get_dashboard_performance,
+    get_dashboard_summary,
+    get_pending_ageing,
+)
 
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -39,3 +47,11 @@ def read_dashboard_performance(
         city=city,
         bank=bank,
     )
+
+
+@router.get("/pending-ageing", response_model=PendingAgeingResponse)
+def read_pending_ageing(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_active_user),
+):
+    return get_pending_ageing(db)
