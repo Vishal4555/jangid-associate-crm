@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 from pathlib import Path
 import os
 
@@ -196,7 +197,10 @@ def create_case(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_active_user),
 ):
-    new_case = Case(**case.model_dump())
+    case_data = case.model_dump()
+    if case_data.get("status") == "Closed":
+        case_data["closed_date"] = date.today()
+    new_case = Case(**case_data)
 
     try:
         db.add(new_case)
@@ -228,6 +232,15 @@ def update_case(
         )
 
     update_data = case_update.model_dump(exclude_unset=True)
+    updated_status = update_data.get("status", existing_case.status)
+    if updated_status == "Closed":
+        if existing_case.closed_date is not None:
+            update_data["closed_date"] = existing_case.closed_date
+        elif update_data.get("closed_date") is None:
+            update_data["closed_date"] = date.today()
+    else:
+        update_data["closed_date"] = None
+
     for field, value in update_data.items():
         setattr(existing_case, field, value)
 

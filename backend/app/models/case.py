@@ -12,6 +12,8 @@ class Case(Base):
 
     receive_date = Column(Date)
 
+    closed_date = Column(Date, nullable=True)
+
     bank = Column(String(200))
 
     branch = Column(String(200))

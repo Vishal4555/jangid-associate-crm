@@ -29,11 +29,13 @@ class CaseCreate(CaseBase):
 
 class CaseUpdate(CaseBase):
     case_no: Optional[str] = None
+    closed_date: Optional[date] = None
 
 
 class CaseResponse(CaseBase):
     id: int
     case_no: str
+    closed_date: Optional[date] = None
 
     model_config = ConfigDict(from_attributes=True)
 

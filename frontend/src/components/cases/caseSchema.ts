@@ -32,6 +32,7 @@ export const caseSchema = z.object({
     "Pending",
     "Positive",
     "Negative",
+    "Closed",
   ]),
 
   negative_reason: z.string().optional(),

@@ -1,10 +1,11 @@
-export type CaseStatus = "Pending" | "Positive" | "Negative";
+export type CaseStatus = "Pending" | "Positive" | "Negative" | "Closed";
 
 export interface Case {
   id: number;
 
   case_no: string;
   receive_date: string;
+  closed_date: string;
 
   bank: string;
   branch: string;

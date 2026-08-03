@@ -10,6 +10,7 @@ export type CaseApiResponse = {
   id: number;
   case_no: string;
   receive_date: string | null;
+  closed_date: string | null;
   bank: string | null;
   branch: string | null;
   loan_type: string | null;
@@ -32,6 +33,7 @@ export function mapCaseResponse(data: CaseApiResponse): Case {
     id: data.id,
     case_no: data.case_no,
     receive_date: data.receive_date ?? "",
+    closed_date: data.closed_date ?? "",
     bank: data.bank ?? "",
     branch: data.branch ?? "",
     loan_type: data.loan_type ?? "",
@@ -42,7 +44,7 @@ export function mapCaseResponse(data: CaseApiResponse): Case {
     mobile: data.mobile ?? "",
     executive: data.executive ?? "",
     status:
-      data.status === "Positive" || data.status === "Negative"
+      data.status === "Positive" || data.status === "Negative" || data.status === "Closed"
         ? data.status
         : "Pending",
     negative_reason: data.negative_reason ?? "",

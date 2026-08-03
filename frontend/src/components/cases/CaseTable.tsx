@@ -85,7 +85,7 @@ export default function CaseTable({
 
                 <td className="p-3">{item.receive_date || "-"}</td>
 
-                <td className="p-3">-</td>
+                <td className="p-3">{item.closed_date || "-"}</td>
 
                 <td className="p-3">{item.applicant || "-"}</td>
 
