@@ -15,6 +15,7 @@ import app.db.base
 
 from app.api.auth import router as auth_router
 from app.api.billing import router as billing_router
+from app.api.payout_rates import router as payout_rates_router
 from app.api.dashboard import router as dashboard_router
 from app.api.follow_ups import router as follow_ups_router
 from app.api.masters import router as masters_router
@@ -180,12 +181,14 @@ Base.metadata.create_all(bind=engine)
 
 app.include_router(auth_router)
 app.include_router(billing_router)
+app.include_router(payout_rates_router)
 app.include_router(masters_router)
 app.include_router(dashboard_router)
 app.include_router(users_router)
 app.include_router(notifications_router)
 app.include_router(auth_router, prefix="/api")
 app.include_router(billing_router, prefix="/api", include_in_schema=False)
+app.include_router(payout_rates_router, prefix="/api", include_in_schema=False)
 app.include_router(masters_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(users_router, prefix="/api")

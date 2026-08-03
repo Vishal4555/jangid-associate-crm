@@ -33,3 +33,5 @@ class Billing(Base):
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
     created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     updated_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    bank_payout_rate_id = Column(Integer, ForeignKey("bank_payout_rates.id", ondelete="SET NULL"), nullable=True)
+    executive_payout_rate_id = Column(Integer, ForeignKey("executive_payout_rates.id", ondelete="SET NULL"), nullable=True)

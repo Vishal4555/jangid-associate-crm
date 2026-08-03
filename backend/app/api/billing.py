@@ -6,12 +6,24 @@ from sqlalchemy.orm import Session
 from app.core.security import require_roles
 from app.db.database import get_db
 from app.models.user import User
-from app.schemas.billing import BillingCreate, BillingResponse, BillingUpdate
-from app.services.billing_service import create_billing, get_billing, list_billing, update_billing
+from app.schemas.billing import (BillingCreate, BillingResponse, BillingUpdate, BulkBillingRequest,
+    BulkCreateRequest, BulkCreateResponse, BulkPreviewResponse)
+from app.services.billing_service import (bulk_create, bulk_preview, create_billing, get_billing,
+    list_billing, update_billing)
 
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 access = Depends(require_roles("Admin", "Manager"))
+
+
+@router.post("/bulk-preview", response_model=BulkPreviewResponse)
+def preview_bulk_billing(payload: BulkBillingRequest, db: Session = Depends(get_db), _: User = access):
+    return bulk_preview(db, payload)
+
+
+@router.post("/bulk-create", response_model=BulkCreateResponse)
+def create_bulk_billing(payload: BulkCreateRequest, db: Session = Depends(get_db), user: User = access):
+    return bulk_create(db, payload.case_ids, user)
 
 
 @router.get("", response_model=list[BillingResponse])

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 
 import BillingModal from "../../components/billing/BillingModal";
+import BulkBillingModal from "../../components/billing/BulkBillingModal";
 import DashboardLayout from "../../layouts/DashboardLayout";
 import { createBilling, getBilling, updateBilling } from "../../services/billingService";
 import { getCases } from "../../services/caseService";
@@ -24,6 +25,7 @@ export default function BillingPage() {
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<BillingRecord | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const initialized = useRef(false);
 
   async function load(active: BillingFilters = {}) {
@@ -56,5 +58,59 @@ export default function BillingPage() {
   }
 
   const inputClass = "rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900";
-  return <DashboardLayout><section className="space-y-6"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold uppercase tracking-[.2em] text-orange-600">Finance</p><h1 className="mt-2 text-3xl font-bold dark:text-white">Billing</h1></div><button onClick={() => { setEditing(null); setModalOpen(true); }} className="flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-white"><Plus size={18} />Add Billing</button></div><form onSubmit={(event) => { event.preventDefault(); void load(filters); }} className="grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-2 lg:grid-cols-4 dark:border-slate-800 dark:bg-slate-900"><input placeholder="Case No" className={inputClass} value={filters.case_no ?? ""} onChange={(e) => setFilter("case_no", e.target.value)} />{(["bank", "executive", "city"] as const).map((key) => <select key={key} className={inputClass} value={filters[key] ?? ""} onChange={(e) => setFilter(key, e.target.value)}><option value="">All {key === "city" ? "Cities" : `${key[0].toUpperCase()}${key.slice(1)}s`}</option>{options[key === "city" ? "cities" : key === "bank" ? "banks" : "executives"].map((value) => <option key={value}>{value}</option>)}</select>)}<select className={inputClass} value={filters.bank_payment_status ?? ""} onChange={(e) => setFilter("bank_payment_status", e.target.value)}><option value="">All Bank Statuses</option>{paymentStatuses.map((s) => <option key={s}>{s}</option>)}</select><select className={inputClass} value={filters.executive_payment_status ?? ""} onChange={(e) => setFilter("executive_payment_status", e.target.value)}><option value="">All Executive Statuses</option>{paymentStatuses.map((s) => <option key={s}>{s}</option>)}</select><input type="date" className={inputClass} value={filters.from_date ?? ""} onChange={(e) => setFilter("from_date", e.target.value)} /><input type="date" className={inputClass} value={filters.to_date ?? ""} onChange={(e) => setFilter("to_date", e.target.value)} /><button className="rounded-xl bg-slate-900 px-4 py-2 text-white">Apply Filters</button><button type="button" onClick={() => { setFilters({}); void load({}); }} className="rounded-xl border px-4 py-2">Clear</button></form><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{cards.map(([label, value]) => <article key={label} className="rounded-2xl border bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><p className="text-sm text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold dark:text-white">{money(value)}</p></article>)}</div><div className="flex flex-wrap gap-3">{(["all", "bank", "executive"] as const).map((kind) => <button key={kind} disabled={!records.length} onClick={() => exportSheet(kind)} className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-700 disabled:opacity-50">Export {kind === "all" ? "All Billing" : kind === "bank" ? "Bank Payout" : "Executive Payout"}</button>)}</div>{error && <p className="rounded-xl bg-red-50 p-4 text-red-700">{error}</p>}<div className="overflow-x-auto rounded-2xl border bg-white dark:border-slate-800 dark:bg-slate-900">{loading ? <p className="p-8 text-center text-slate-500">Loading billing…</p> : !records.length ? <p className="p-8 text-center text-slate-500">No billing records found.</p> : <table className="w-full min-w-[1500px] text-sm"><thead className="bg-slate-900 text-white"><tr>{["Case No", "Applicant", "Bank", "Executive", "Bank Payout", "Bank Received", "Bank Balance", "Executive Payout", "Executive Paid", "Executive Balance", "Expected Margin", "Action"].map((h) => <th key={h} className="p-3 text-left">{h}</th>)}</tr></thead><tbody>{records.map((r) => <tr key={r.id} className="border-b dark:border-slate-800"><td className="p-3">{r.case_no}</td><td className="p-3">{r.applicant || "-"}</td><td className="p-3">{r.bank || "-"}</td><td className="p-3">{r.executive || "-"}</td><td className="p-3">{money(r.bank_payout_amount)}</td><td className="p-3">{money(r.bank_paid_amount)}</td><td className="p-3">{money(r.bank_balance)}</td><td className="p-3">{money(r.executive_payout_amount)}</td><td className="p-3">{money(r.executive_paid_amount)}</td><td className="p-3">{money(r.executive_balance)}</td><td className="p-3 font-semibold">{money(r.expected_gross_margin)}</td><td className="p-3"><button onClick={() => openEdit(r)} aria-label={`Edit billing ${r.case_no}`} className="rounded p-2 text-green-600 hover:bg-green-50"><Pencil size={17} /></button></td></tr>)}</tbody></table>}</div></section><BillingModal open={modalOpen} record={editing} cases={availableCases} onClose={() => { setModalOpen(false); setEditing(null); }} onSave={save} /></DashboardLayout>;
+  return <DashboardLayout>
+<section className="space-y-6">
+<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+<div>
+<p className="text-sm font-semibold uppercase tracking-[.2em] text-orange-600">Finance</p>
+<h1 className="mt-2 text-3xl font-bold dark:text-white">Billing</h1>
+</div>
+<div className="flex gap-2">
+<button onClick={() => setBulkOpen(true)} className="rounded-xl bg-green-600 px-4 py-2.5 font-semibold text-white">Bulk Generate Billing</button>
+<button onClick={() => { setEditing(null); setModalOpen(true); }} className="flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-white">
+<Plus size={18} />Add Billing</button>
+</div>
+</div>
+<form onSubmit={(event) => { event.preventDefault(); void load(filters); }} className="grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-2 lg:grid-cols-4 dark:border-slate-800 dark:bg-slate-900">
+<input placeholder="Case No" className={inputClass} value={filters.case_no ?? ""} onChange={(e) => setFilter("case_no", e.target.value)} />{(["bank", "executive", "city"] as const).map((key) => <select key={key} className={inputClass} value={filters[key] ?? ""} onChange={(e) => setFilter(key, e.target.value)}>
+<option value="">All {key === "city" ? "Cities" : `${key[0].toUpperCase()}${key.slice(1)}s`}</option>{options[key === "city" ? "cities" : key === "bank" ? "banks" : "executives"].map((value) => <option key={value}>{value}</option>)}</select>)}<select className={inputClass} value={filters.bank_payment_status ?? ""} onChange={(e) => setFilter("bank_payment_status", e.target.value)}>
+<option value="">All Bank Statuses</option>{paymentStatuses.map((s) => <option key={s}>{s}</option>)}</select>
+<select className={inputClass} value={filters.executive_payment_status ?? ""} onChange={(e) => setFilter("executive_payment_status", e.target.value)}>
+<option value="">All Executive Statuses</option>{paymentStatuses.map((s) => <option key={s}>{s}</option>)}</select>
+<input type="date" className={inputClass} value={filters.from_date ?? ""} onChange={(e) => setFilter("from_date", e.target.value)} />
+<input type="date" className={inputClass} value={filters.to_date ?? ""} onChange={(e) => setFilter("to_date", e.target.value)} />
+<button className="rounded-xl bg-slate-900 px-4 py-2 text-white">Apply Filters</button>
+<button type="button" onClick={() => { setFilters({}); void load({}); }} className="rounded-xl border px-4 py-2">Clear</button>
+</form>
+<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{cards.map(([label, value]) => <article key={label} className="rounded-2xl border bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+<p className="text-sm text-slate-500">{label}</p>
+<p className="mt-2 text-2xl font-bold dark:text-white">{money(value)}</p>
+</article>)}</div>
+<div className="flex flex-wrap gap-3">{(["all", "bank", "executive"] as const).map((kind) => <button key={kind} disabled={!records.length} onClick={() => exportSheet(kind)} className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-700 disabled:opacity-50">Export {kind === "all" ? "All Billing" : kind === "bank" ? "Bank Payout" : "Executive Payout"}</button>)}</div>{error && <p className="rounded-xl bg-red-50 p-4 text-red-700">{error}</p>}<div className="overflow-x-auto rounded-2xl border bg-white dark:border-slate-800 dark:bg-slate-900">{loading ? <p className="p-8 text-center text-slate-500">Loading billing…</p> : !records.length ? <p className="p-8 text-center text-slate-500">No billing records found.</p> : <table className="w-full min-w-[1500px] text-sm">
+<thead className="bg-slate-900 text-white">
+<tr>{["Case No", "Applicant", "Bank", "Executive", "Bank Payout", "Bank Received", "Bank Balance", "Executive Payout", "Executive Paid", "Executive Balance", "Expected Margin", "Action"].map((h) => <th key={h} className="p-3 text-left">{h}</th>)}</tr>
+</thead>
+<tbody>{records.map((r) => <tr key={r.id} className="border-b dark:border-slate-800">
+<td className="p-3">{r.case_no}</td>
+<td className="p-3">{r.applicant || "-"}</td>
+<td className="p-3">{r.bank || "-"}</td>
+<td className="p-3">{r.executive || "-"}</td>
+<td className="p-3">{money(r.bank_payout_amount)}</td>
+<td className="p-3">{money(r.bank_paid_amount)}</td>
+<td className="p-3">{money(r.bank_balance)}</td>
+<td className="p-3">{money(r.executive_payout_amount)}</td>
+<td className="p-3">{money(r.executive_paid_amount)}</td>
+<td className="p-3">{money(r.executive_balance)}</td>
+<td className="p-3 font-semibold">{money(r.expected_gross_margin)}</td>
+<td className="p-3">
+<button onClick={() => openEdit(r)} aria-label={`Edit billing ${r.case_no}`} className="rounded p-2 text-green-600 hover:bg-green-50">
+<Pencil size={17} />
+</button>
+</td>
+</tr>)}</tbody>
+</table>}</div>
+</section>
+<BulkBillingModal open={bulkOpen} cases={cases} onClose={() => setBulkOpen(false)} onCreated={() => load(filters)} />
+<BillingModal open={modalOpen} record={editing} cases={availableCases} onClose={() => { setModalOpen(false); setEditing(null); }} onSave={save} />
+</DashboardLayout>;
 }

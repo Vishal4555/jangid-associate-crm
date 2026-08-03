@@ -5,3 +5,4 @@ from app.models.case import Case
 from app.models.case_activity import CaseActivity
 from app.models.billing import Billing
 from app.models.user import User
+from app.models.payout_rate import BankPayoutRate, ExecutivePayoutRate
