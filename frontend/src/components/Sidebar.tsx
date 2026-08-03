@@ -4,6 +4,7 @@ import {
   FolderOpen,
   Layers3,
   LayoutDashboard,
+  ReceiptIndianRupee,
   LogOut,
   Search,
   Settings,
@@ -19,6 +20,7 @@ import type { AuthRole } from "../types/auth";
 type SidebarPath =
   | "/dashboard"
   | "/cases"
+  | "/billing"
   | "/search"
   | "/reports"
   | "/masters"
@@ -35,6 +37,7 @@ type MenuItem = {
 const menus: MenuItem[] = [
   { icon: LayoutDashboard, name: "Dashboard", path: "/dashboard", roles: ["Admin", "Manager", "Executive"] },
   { icon: FolderOpen, name: "Cases", path: "/cases", roles: ["Admin", "Manager", "Executive"] },
+  { icon: ReceiptIndianRupee, name: "Billing", path: "/billing", roles: ["Admin", "Manager"] },
   { icon: Search, name: "Search", path: "/search", roles: ["Admin", "Manager", "Executive"] },
   { icon: BarChart3, name: "Reports", path: "/reports", roles: ["Admin", "Manager"] },
   { icon: Layers3, name: "Masters", path: "/masters", roles: ["Admin", "Manager"] },

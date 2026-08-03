@@ -6,6 +6,7 @@ import { ProtectedRoute, PublicRoute, RoleRoute } from "../components/auth/Route
 const LoginPage = lazy(() => import("../pages/Login/LoginPage"));
 const DashboardPage = lazy(() => import("../pages/Dashboard/DashboardPage"));
 const CasesPage = lazy(() => import("../pages/Cases/CasesPage"));
+const BillingPage = lazy(() => import("../pages/Billing/BillingPage"));
 const MastersPage = lazy(() => import("../pages/Masters"));
 const SearchPage = lazy(() => import("../pages/Search/SearchPage"));
 const ReportsPage = lazy(() => import("../pages/Reports/ReportsPage"));
@@ -80,6 +81,7 @@ export default function AppRoutes() {
 
         <Route path="/search" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
         <Route path="/reports" element={<RoleRoute allowedRoles={["Admin", "Manager"]}><ReportsPage /></RoleRoute>} />
+        <Route path="/billing" element={<RoleRoute allowedRoles={["Admin", "Manager"]}><BillingPage /></RoleRoute>} />
         <Route path="/users" element={<RoleRoute allowedRoles={["Admin"]}><UsersPage /></RoleRoute>} />
         <Route path="/settings" element={<RoleRoute allowedRoles={["Admin", "Manager"]}><SettingsPage /></RoleRoute>} />
 
