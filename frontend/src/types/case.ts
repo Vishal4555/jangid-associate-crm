@@ -60,3 +60,16 @@ export interface CaseFormPayload {
 export interface DeleteCaseResponse {
   message: string;
 }
+
+export interface CaseActivity {
+  id: number;
+  case_id: number;
+  activity_type: string;
+  field_name: string | null;
+  old_value: string | null;
+  new_value: string | null;
+  performed_by_user_id: number | null;
+  performed_by_name: string | null;
+  performed_at: string;
+  remarks: string | null;
+}

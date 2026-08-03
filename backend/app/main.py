@@ -21,11 +21,73 @@ from app.api.users import router as users_router
 from app.core.security import get_current_active_user
 from app.db.database import Base, engine, get_db
 from app.models.case import Case
+from app.models.case_activity import CaseActivity
 from app.models.user import User
-from app.schemas.case import CaseCreate, CaseResponse, CaseUpdate, MessageResponse
+from app.schemas.case import (
+    CaseActivityResponse,
+    CaseCreate,
+    CaseResponse,
+    CaseUpdate,
+    MessageResponse,
+)
 
 logger = logging.getLogger(__name__)
 MAX_REQUEST_BODY_SIZE = 2 * 1024 * 1024
+
+ACTIVITY_TYPES_BY_FIELD = {
+    "status": "STATUS_CHANGED",
+    "executive": "EXECUTIVE_CHANGED",
+    "bank": "BANK_CHANGED",
+    "city": "CITY_CHANGED",
+    "address": "ADDRESS_CHANGED",
+    "applicant": "APPLICANT_CHANGED",
+    "mobile": "MOBILE_CHANGED",
+    "next_follow_up_at": "FOLLOW_UP_CHANGED",
+    "follow_up_note": "FOLLOW_UP_NOTE_CHANGED",
+    "closed_date": "CLOSED_DATE_CHANGED",
+}
+INITIAL_ACTIVITY_FIELDS = (
+    "status",
+    "executive",
+    "bank",
+    "city",
+    "applicant",
+    "mobile",
+    "receive_date",
+    "address",
+    "branch",
+    "loan_type",
+    "product_type",
+    "remarks",
+    "landmark",
+)
+
+
+def _activity_value(value) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    return str(value)
+
+
+def _case_activity(
+    case_id: int,
+    activity_type: str,
+    current_user: User,
+    field_name: str | None = None,
+    old_value=None,
+    new_value=None,
+) -> CaseActivity:
+    return CaseActivity(
+        case_id=case_id,
+        activity_type=activity_type,
+        field_name=field_name,
+        old_value=_activity_value(old_value),
+        new_value=_activity_value(new_value),
+        performed_by_user_id=current_user.id,
+        performed_by_name=current_user.full_name,
+    )
 
 app = FastAPI(
     title="JANGID ASSOCIATE CRM",
@@ -195,7 +257,7 @@ def get_case(
 def create_case(
     case: CaseCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_active_user),
 ):
     case_data = case.model_dump()
     if case_data.get("status") in {"Positive", "Negative"}:
@@ -204,6 +266,20 @@ def create_case(
 
     try:
         db.add(new_case)
+        db.flush()
+        db.add(_case_activity(new_case.id, "CASE_CREATED", current_user))
+        db.add_all(
+            _case_activity(
+                new_case.id,
+                "FIELD_UPDATED",
+                current_user,
+                field_name=field,
+                new_value=value,
+            )
+            for field in INITIAL_ACTIVITY_FIELDS
+            if (value := getattr(new_case, field)) is not None
+            and (not isinstance(value, str) or value.strip())
+        )
         db.commit()
         db.refresh(new_case)
     except IntegrityError:
@@ -212,6 +288,9 @@ def create_case(
             status_code=status.HTTP_409_CONFLICT,
             detail="Case number already exists"
         )
+    except Exception:
+        db.rollback()
+        raise
 
     return new_case
 
@@ -222,7 +301,7 @@ def update_case(
     id: int,
     case_update: CaseUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_active_user),
 ):
     existing_case = db.get(Case, id)
     if existing_case is None:
@@ -241,10 +320,24 @@ def update_case(
     else:
         update_data["closed_date"] = None
 
+    activities = []
     for field, value in update_data.items():
-        setattr(existing_case, field, value)
+        old_value = getattr(existing_case, field)
+        if old_value != value:
+            activities.append(
+                _case_activity(
+                    existing_case.id,
+                    ACTIVITY_TYPES_BY_FIELD.get(field, "FIELD_UPDATED"),
+                    current_user,
+                    field_name=field,
+                    old_value=old_value,
+                    new_value=value,
+                )
+            )
+            setattr(existing_case, field, value)
 
     try:
+        db.add_all(activities)
         db.commit()
         db.refresh(existing_case)
     except IntegrityError:
@@ -253,8 +346,36 @@ def update_case(
             status_code=status.HTTP_409_CONFLICT,
             detail="Case number already exists"
         )
+    except Exception:
+        db.rollback()
+        raise
 
     return existing_case
+
+
+@app.get("/cases/{id}/activity", response_model=list[CaseActivityResponse])
+@app.get(
+    "/api/cases/{id}/activity",
+    response_model=list[CaseActivityResponse],
+    include_in_schema=False,
+)
+def get_case_activity(
+    id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_active_user),
+):
+    if db.get(Case, id) is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Case with id {id} not found",
+        )
+
+    stmt = (
+        select(CaseActivity)
+        .where(CaseActivity.case_id == id)
+        .order_by(CaseActivity.performed_at.desc(), CaseActivity.id.desc())
+    )
+    return db.scalars(stmt).all()
 
 
 @app.delete("/cases/{id}", response_model=MessageResponse)

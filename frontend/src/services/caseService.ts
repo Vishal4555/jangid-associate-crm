@@ -2,6 +2,7 @@ import API from "../api/caseApi";
 import { emitCasesChanged } from "./caseChangeEvents";
 import type {
   Case,
+  CaseActivity,
   CaseFormPayload,
   DeleteCaseResponse,
 } from "../types/case";
@@ -101,6 +102,15 @@ export const getCaseById = async (id: number): Promise<Case> => {
   try {
     const response = await API.get<CaseApiResponse>(`/cases/${id}`);
     return mapCaseResponse(response.data);
+  } catch (error) {
+    throw toErrorMessage(error);
+  }
+};
+
+export const getCaseActivity = async (id: number): Promise<CaseActivity[]> => {
+  try {
+    const response = await API.get<CaseActivity[]>(`/cases/${id}/activity`);
+    return Array.isArray(response.data) ? response.data : [];
   } catch (error) {
     throw toErrorMessage(error);
   }

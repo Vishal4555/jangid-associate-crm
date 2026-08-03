@@ -40,5 +40,20 @@ class CaseResponse(CaseBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CaseActivityResponse(BaseModel):
+    id: int
+    case_id: int
+    activity_type: str
+    field_name: Optional[str] = None
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    performed_by_user_id: Optional[int] = None
+    performed_by_name: Optional[str] = None
+    performed_at: datetime
+    remarks: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class MessageResponse(BaseModel):
     message: str
