@@ -124,6 +124,7 @@ export default function CasesPage() {
       "Status",
       "City",
       "Mobile",
+      "Remarks",
     ];
 
     const rows = filteredCases.map((item) => [
@@ -135,6 +136,7 @@ export default function CasesPage() {
       item.status,
       item.city,
       item.mobile,
+      item.remarks,
     ]);
 
     const csv = [headers, ...rows]
