@@ -12,6 +12,31 @@ import ViewCaseModal from "../../components/cases/ViewCaseModal";
 import { getCases } from "../../services/caseService";
 import type { Case, CaseStatusFilter } from "../../types/case";
 
+function exportTat(receiveDate: string, closedDate: string): string {
+  if (!receiveDate || !closedDate) return "";
+
+  const toUtc = (value: string): number | null => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (!match) return null;
+    const [, yearText, monthText, dayText] = match;
+    const year = Number(yearText);
+    const month = Number(monthText);
+    const day = Number(dayText);
+    const utc = Date.UTC(year, month - 1, day);
+    const parsed = new Date(utc);
+    return parsed.getUTCFullYear() === year &&
+      parsed.getUTCMonth() === month - 1 &&
+      parsed.getUTCDate() === day
+      ? utc
+      : null;
+  };
+
+  const receiveUtc = toUtc(receiveDate);
+  const closedUtc = toUtc(closedDate);
+  if (receiveUtc === null || closedUtc === null || closedUtc < receiveUtc) return "";
+  return `${Math.floor((closedUtc - receiveUtc) / 86_400_000)} days`;
+}
+
 export default function CasesPage() {
 
   const [cases, setCases] = useState<Case[]>([]);
@@ -118,6 +143,8 @@ export default function CasesPage() {
     const headers = [
       "Case No",
       "Receive Date",
+      "Closed Date",
+      "TAT",
       "Applicant",
       "Bank",
       "Executive",
@@ -130,6 +157,8 @@ export default function CasesPage() {
     const rows = filteredCases.map((item) => [
       item.case_no,
       item.receive_date,
+      item.closed_date,
+      exportTat(item.receive_date, item.closed_date),
       item.applicant,
       item.bank,
       item.executive,
