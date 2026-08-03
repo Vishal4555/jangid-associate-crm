@@ -122,6 +122,7 @@ app.include_router(masters_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(follow_ups_router)
+app.include_router(follow_ups_router, prefix="/api", include_in_schema=False)
 
 if (FRONTEND_DIST_DIR / "assets").exists():
     app.mount(

@@ -11,7 +11,7 @@ from app.models.user import User
 from app.schemas.case import CaseResponse
 
 
-router = APIRouter(prefix="/api/follow-ups", tags=["follow-ups"])
+router = APIRouter(prefix="/follow-ups", tags=["follow-ups"])
 
 
 def _get_server_now() -> datetime:
