@@ -77,7 +77,7 @@ export default function Sidebar({
 
       <aside
         aria-label="Application sidebar"
-        className={`fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-slate-800 bg-[#0F172A] text-white shadow-2xl shadow-slate-950/20 transition-all duration-300 lg:static lg:shadow-none ${
+        className={`fixed inset-y-0 left-0 z-40 flex min-h-screen self-stretch flex-col border-r border-slate-800 bg-[#0F172A] text-white shadow-2xl shadow-slate-950/20 transition-all duration-300 lg:static lg:shadow-none ${
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         } ${collapsed ? "w-20" : "w-72"}`}
       >
