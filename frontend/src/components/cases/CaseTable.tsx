@@ -11,6 +11,45 @@ interface Props {
   onDelete: (item: Case) => void;
 }
 
+function formatTurnaroundTime(receiveDate: string, closedDate: string): string {
+  if (!receiveDate || !closedDate) {
+    return "-";
+  }
+
+  function parseDateOnlyUtc(value: string): number | null {
+    const parts = value.split("-");
+    if (parts.length !== 3 || parts.some((part) => !/^\d+$/.test(part))) {
+      return null;
+    }
+
+    const [year, month, day] = parts.map(Number);
+    const utc = Date.UTC(year, month - 1, day);
+    const parsed = new Date(utc);
+
+    if (
+      parts[0].length !== 4 ||
+      parts[1].length !== 2 ||
+      parts[2].length !== 2 ||
+      parsed.getUTCFullYear() !== year ||
+      parsed.getUTCMonth() !== month - 1 ||
+      parsed.getUTCDate() !== day
+    ) {
+      return null;
+    }
+
+    return utc;
+  }
+
+  const receiveUtc = parseDateOnlyUtc(receiveDate);
+  const closedUtc = parseDateOnlyUtc(closedDate);
+  if (receiveUtc === null || closedUtc === null || closedUtc < receiveUtc) {
+    return "-";
+  }
+
+  const days = Math.floor((closedUtc - receiveUtc) / 86_400_000);
+  return `${days} days`;
+}
+
 export default function CaseTable({
   cases,
   loading,
@@ -61,6 +100,7 @@ export default function CaseTable({
               <th className="p-3 text-left">Case No</th>
               <th className="p-3 text-left">Receive Date</th>
               <th className="p-3 text-left">Closed Date</th>
+              <th className="p-3 text-left">TAT</th>
               <th className="p-3 text-left">Applicant</th>
               <th className="p-3 text-left">Address</th>
               <th className="p-3 text-left">Bank</th>
@@ -86,6 +126,8 @@ export default function CaseTable({
                 <td className="p-3">{item.receive_date || "-"}</td>
 
                 <td className="p-3">{item.closed_date || "-"}</td>
+
+                <td className="p-3">{formatTurnaroundTime(item.receive_date, item.closed_date)}</td>
 
                 <td className="p-3">{item.applicant || "-"}</td>
 

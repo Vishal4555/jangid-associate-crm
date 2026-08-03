@@ -101,7 +101,6 @@ export default function CaseToolbar({
           <option value="Pending">Pending</option>
           <option value="Positive">Positive</option>
           <option value="Negative">Negative</option>
-          <option value="Closed">Closed</option>
         </select>
 
       </div>

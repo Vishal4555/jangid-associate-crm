@@ -1,4 +1,4 @@
-export type CaseStatus = "Pending" | "Positive" | "Negative" | "Closed";
+export type CaseStatus = "Pending" | "Positive" | "Negative";
 
 export interface Case {
   id: number;

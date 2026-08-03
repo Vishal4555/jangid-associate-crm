@@ -198,7 +198,7 @@ def create_case(
     _: User = Depends(get_current_active_user),
 ):
     case_data = case.model_dump()
-    if case_data.get("status") == "Closed":
+    if case_data.get("status") in {"Positive", "Negative"}:
         case_data["closed_date"] = date.today()
     new_case = Case(**case_data)
 
@@ -233,7 +233,7 @@ def update_case(
 
     update_data = case_update.model_dump(exclude_unset=True)
     updated_status = update_data.get("status", existing_case.status)
-    if updated_status == "Closed":
+    if updated_status in {"Positive", "Negative"}:
         if existing_case.closed_date is not None:
             update_data["closed_date"] = existing_case.closed_date
         elif update_data.get("closed_date") is None:

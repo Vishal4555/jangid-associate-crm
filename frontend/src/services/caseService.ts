@@ -44,7 +44,7 @@ export function mapCaseResponse(data: CaseApiResponse): Case {
     mobile: data.mobile ?? "",
     executive: data.executive ?? "",
     status:
-      data.status === "Positive" || data.status === "Negative" || data.status === "Closed"
+      data.status === "Positive" || data.status === "Negative"
         ? data.status
         : "Pending",
     negative_reason: data.negative_reason ?? "",
