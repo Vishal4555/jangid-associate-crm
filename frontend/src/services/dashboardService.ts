@@ -1,5 +1,9 @@
 import API from "../api/caseApi";
-import type { DashboardSummary } from "../types/dashboard";
+import type {
+  DashboardPerformance,
+  DashboardSummary,
+  PerformanceFilters,
+} from "../types/dashboard";
 
 const EMPTY_SUMMARY: DashboardSummary = {
   total_cases: 0,
@@ -42,6 +46,19 @@ export const getDashboardSummary = async (): Promise<DashboardSummary> => {
       today_cases: response.data.today_cases ?? 0,
       this_month_cases: response.data.this_month_cases ?? 0,
     };
+  } catch (error) {
+    throw toErrorMessage(error);
+  }
+};
+
+export const getDashboardPerformance = async (
+  filters: PerformanceFilters = {},
+): Promise<DashboardPerformance> => {
+  try {
+    const response = await API.get<DashboardPerformance>("/dashboard/performance", {
+      params: filters,
+    });
+    return response.data;
   } catch (error) {
     throw toErrorMessage(error);
   }
