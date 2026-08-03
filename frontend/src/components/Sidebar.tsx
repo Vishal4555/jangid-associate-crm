@@ -21,6 +21,10 @@ type SidebarPath =
   | "/dashboard"
   | "/cases"
   | "/billing"
+  | "/billing/payment-register"
+  | "/billing/executive-rates"
+  | "/billing/bank-rates"
+  | "/billing/dashboard"
   | "/search"
   | "/reports"
   | "/masters"
@@ -37,7 +41,11 @@ type MenuItem = {
 const menus: MenuItem[] = [
   { icon: LayoutDashboard, name: "Dashboard", path: "/dashboard", roles: ["Admin", "Manager", "Executive"] },
   { icon: FolderOpen, name: "Cases", path: "/cases", roles: ["Admin", "Manager", "Executive"] },
-  { icon: ReceiptIndianRupee, name: "Billing", path: "/billing", roles: ["Admin", "Manager"] },
+  { icon: ReceiptIndianRupee, name: "Monthly Billing", path: "/billing", roles: ["Admin", "Manager"] },
+  { icon: Layers3, name: "Executive Rate Master", path: "/billing/executive-rates", roles: ["Admin", "Manager"] },
+  { icon: Layers3, name: "Bank Rate Master", path: "/billing/bank-rates", roles: ["Admin", "Manager"] },
+  { icon: ReceiptIndianRupee, name: "Payment Register", path: "/billing/payment-register", roles: ["Admin", "Manager"] },
+  { icon: BarChart3, name: "Billing Dashboard", path: "/billing/dashboard", roles: ["Admin", "Manager"] },
   { icon: Search, name: "Search", path: "/search", roles: ["Admin", "Manager", "Executive"] },
   { icon: BarChart3, name: "Reports", path: "/reports", roles: ["Admin", "Manager"] },
   { icon: Layers3, name: "Masters", path: "/masters", roles: ["Admin", "Manager"] },

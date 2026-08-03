@@ -1,116 +1,47 @@
-import { Pencil, Plus } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Download, RefreshCw } from "lucide-react";
+import { useLocation } from "react-router-dom";
 import * as XLSX from "xlsx";
 
-import BillingModal from "../../components/billing/BillingModal";
-import BulkBillingModal from "../../components/billing/BulkBillingModal";
 import DashboardLayout from "../../layouts/DashboardLayout";
-import { createBilling, getBilling, updateBilling } from "../../services/billingService";
+import { useAuth } from "../../context/AuthContext";
 import { getCases } from "../../services/caseService";
-import type { BillingFilters, BillingPayload, BillingRecord, PaymentStatus } from "../../types/billing";
+import { finalizeMonth, getMonthlyBilling, regenerateMonth, reopenMonth, savePaymentRegister } from "../../services/monthlyBillingService";
 import type { Case } from "../../types/case";
+import type { ExecutiveMonthlyBilling, MonthlyBillingResponse, PaymentRegisterPayload } from "../../types/monthlyBilling";
 
-
-const paymentStatuses: PaymentStatus[] = ["Pending", "Partially Paid", "Paid", "Cancelled"];
-const money = (value: string | number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(Number(value) || 0);
-const clean = (filters: BillingFilters) => Object.fromEntries(Object.entries(filters).filter(([, value]) => value)) as BillingFilters;
-const today = () => new Date().toISOString().slice(0, 10);
+type Tab = "executive" | "bank" | "register";
+const monthNow = () => new Date().toISOString().slice(0, 7);
+const money = (value: string | number | null) => value == null ? "—" : new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(Number(value));
+const control = "rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-900";
 
 export default function BillingPage() {
-  const [records, setRecords] = useState<BillingRecord[]>([]);
-  const [cases, setCases] = useState<Case[]>([]);
-  const [billedCaseIds, setBilledCaseIds] = useState<Set<number>>(new Set());
-  const [filters, setFilters] = useState<BillingFilters>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<BillingRecord | null>(null);
-  const [bulkOpen, setBulkOpen] = useState(false);
-  const initialized = useRef(false);
-
-  async function load(active: BillingFilters = {}) {
-    setLoading(true);
-    try {
-      const [billing, caseItems, allBilling] = await Promise.all([getBilling(clean(active)), getCases(), getBilling()]);
-      setRecords(billing);
-      setCases(caseItems);
-      setBilledCaseIds(new Set(allBilling.map((record) => record.case_id)));
-      setError(null);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load billing.");
-    } finally { setLoading(false); }
-  }
-
-  useEffect(() => { if (!initialized.current) { initialized.current = true; void load(); } }, []);
-  const setFilter = (key: keyof BillingFilters, value: string) => setFilters((current) => ({ ...current, [key]: value || undefined }));
-  const availableCases = cases.filter((item) => editing?.case_id === item.id || !billedCaseIds.has(item.id));
-  const options = useMemo(() => ({ banks: [...new Set(cases.map((item) => item.bank).filter(Boolean))], executives: [...new Set(cases.map((item) => item.executive).filter(Boolean))], cities: [...new Set(cases.map((item) => item.city).filter(Boolean))] }), [cases]);
-  const total = (field: keyof BillingRecord) => records.reduce((sum, record) => sum + Number(record[field]), 0);
-  const cards = [["Total Bank Payout", total("bank_payout_amount")], ["Bank Received", total("bank_paid_amount")], ["Bank Outstanding", total("bank_balance")], ["Total Executive Payout", total("executive_payout_amount")], ["Executive Paid", total("executive_paid_amount")], ["Executive Outstanding", total("executive_balance")], ["Expected Gross Margin", total("expected_gross_margin")], ["Realized Cash Margin", total("realized_cash_margin")]] as const;
-
-  async function save(payload: BillingPayload) { if (editing) await updateBilling(editing.id, payload); else await createBilling(payload); setModalOpen(false); setEditing(null); await load(filters); }
-  function openEdit(record: BillingRecord) { setEditing(record); setModalOpen(true); }
-
-  function exportSheet(kind: "all" | "bank" | "executive") {
-    if (!records.length) return;
-    const rows = records.map((r) => kind === "all" ? { "Case No": r.case_no, Applicant: r.applicant ?? "", Bank: r.bank ?? "", City: r.city ?? "", Executive: r.executive ?? "", "Bank Payout": Number(r.bank_payout_amount), "Bank Received": Number(r.bank_paid_amount), "Bank Balance": Number(r.bank_balance), "Bank Status": r.bank_payment_status, "Bank Paid Date": r.bank_paid_date ?? "", "Bank Reference": r.bank_payment_reference ?? "", "Executive Payout": Number(r.executive_payout_amount), "Executive Paid": Number(r.executive_paid_amount), "Executive Balance": Number(r.executive_balance), "Executive Status": r.executive_payment_status, "Executive Paid Date": r.executive_paid_date ?? "", "Executive Reference": r.executive_payment_reference ?? "", "Expected Gross Margin": Number(r.expected_gross_margin), "Realized Cash Margin": Number(r.realized_cash_margin), Remarks: r.remarks ?? "" } : kind === "bank" ? { "Case No": r.case_no, Applicant: r.applicant ?? "", Bank: r.bank ?? "", City: r.city ?? "", "Bank Payout": Number(r.bank_payout_amount), "Bank Received": Number(r.bank_paid_amount), "Bank Balance": Number(r.bank_balance), "Bank Status": r.bank_payment_status, "Bank Paid Date": r.bank_paid_date ?? "", "Bank Reference": r.bank_payment_reference ?? "", Remarks: r.remarks ?? "" } : { "Case No": r.case_no, Applicant: r.applicant ?? "", Executive: r.executive ?? "", City: r.city ?? "", "Executive Payout": Number(r.executive_payout_amount), "Executive Paid": Number(r.executive_paid_amount), "Executive Balance": Number(r.executive_balance), "Executive Status": r.executive_payment_status, "Executive Paid Date": r.executive_paid_date ?? "", "Executive Reference": r.executive_payment_reference ?? "", Remarks: r.remarks ?? "" });
-    const sheet = XLSX.utils.json_to_sheet(rows); sheet["!cols"] = Object.keys(rows[0]).map((header) => ({ wch: Math.max(14, header.length + 2) })); const workbook = XLSX.utils.book_new(); const sheetName = kind === "all" ? "All Billing" : kind === "bank" ? "Bank Payout" : "Executive Payout"; XLSX.utils.book_append_sheet(workbook, sheet, sheetName); const filename = kind === "all" ? `jangid-billing-all-${today()}.xlsx` : kind === "bank" ? `jangid-bank-payout-${today()}.xlsx` : `jangid-executive-payout-${today()}.xlsx`; XLSX.writeFile(workbook, filename, { compression: true });
-  }
-
-  const inputClass = "rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900";
-  return <DashboardLayout>
-<section className="space-y-6">
-<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-<div>
-<p className="text-sm font-semibold uppercase tracking-[.2em] text-orange-600">Finance</p>
-<h1 className="mt-2 text-3xl font-bold dark:text-white">Billing</h1>
-</div>
-<div className="flex gap-2">
-<button onClick={() => setBulkOpen(true)} className="rounded-xl bg-green-600 px-4 py-2.5 font-semibold text-white">Bulk Generate Billing</button>
-<button onClick={() => { setEditing(null); setModalOpen(true); }} className="flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-white">
-<Plus size={18} />Add Billing</button>
-</div>
-</div>
-<form onSubmit={(event) => { event.preventDefault(); void load(filters); }} className="grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-2 lg:grid-cols-4 dark:border-slate-800 dark:bg-slate-900">
-<input placeholder="Case No" className={inputClass} value={filters.case_no ?? ""} onChange={(e) => setFilter("case_no", e.target.value)} />{(["bank", "executive", "city"] as const).map((key) => <select key={key} className={inputClass} value={filters[key] ?? ""} onChange={(e) => setFilter(key, e.target.value)}>
-<option value="">All {key === "city" ? "Cities" : `${key[0].toUpperCase()}${key.slice(1)}s`}</option>{options[key === "city" ? "cities" : key === "bank" ? "banks" : "executives"].map((value) => <option key={value}>{value}</option>)}</select>)}<select className={inputClass} value={filters.bank_payment_status ?? ""} onChange={(e) => setFilter("bank_payment_status", e.target.value)}>
-<option value="">All Bank Statuses</option>{paymentStatuses.map((s) => <option key={s}>{s}</option>)}</select>
-<select className={inputClass} value={filters.executive_payment_status ?? ""} onChange={(e) => setFilter("executive_payment_status", e.target.value)}>
-<option value="">All Executive Statuses</option>{paymentStatuses.map((s) => <option key={s}>{s}</option>)}</select>
-<input type="date" className={inputClass} value={filters.from_date ?? ""} onChange={(e) => setFilter("from_date", e.target.value)} />
-<input type="date" className={inputClass} value={filters.to_date ?? ""} onChange={(e) => setFilter("to_date", e.target.value)} />
-<button className="rounded-xl bg-slate-900 px-4 py-2 text-white">Apply Filters</button>
-<button type="button" onClick={() => { setFilters({}); void load({}); }} className="rounded-xl border px-4 py-2">Clear</button>
-</form>
-<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{cards.map(([label, value]) => <article key={label} className="rounded-2xl border bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-<p className="text-sm text-slate-500">{label}</p>
-<p className="mt-2 text-2xl font-bold dark:text-white">{money(value)}</p>
-</article>)}</div>
-<div className="flex flex-wrap gap-3">{(["all", "bank", "executive"] as const).map((kind) => <button key={kind} disabled={!records.length} onClick={() => exportSheet(kind)} className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-700 disabled:opacity-50">Export {kind === "all" ? "All Billing" : kind === "bank" ? "Bank Payout" : "Executive Payout"}</button>)}</div>{error && <p className="rounded-xl bg-red-50 p-4 text-red-700">{error}</p>}<div className="overflow-x-auto rounded-2xl border bg-white dark:border-slate-800 dark:bg-slate-900">{loading ? <p className="p-8 text-center text-slate-500">Loading billing…</p> : !records.length ? <p className="p-8 text-center text-slate-500">No billing records found.</p> : <table className="w-full min-w-[1500px] text-sm">
-<thead className="bg-slate-900 text-white">
-<tr>{["Case No", "Applicant", "Bank", "Executive", "Bank Payout", "Bank Received", "Bank Balance", "Executive Payout", "Executive Paid", "Executive Balance", "Expected Margin", "Action"].map((h) => <th key={h} className="p-3 text-left">{h}</th>)}</tr>
-</thead>
-<tbody>{records.map((r) => <tr key={r.id} className="border-b dark:border-slate-800">
-<td className="p-3">{r.case_no}</td>
-<td className="p-3">{r.applicant || "-"}</td>
-<td className="p-3">{r.bank || "-"}</td>
-<td className="p-3">{r.executive || "-"}</td>
-<td className="p-3">{money(r.bank_payout_amount)}</td>
-<td className="p-3">{money(r.bank_paid_amount)}</td>
-<td className="p-3">{money(r.bank_balance)}</td>
-<td className="p-3">{money(r.executive_payout_amount)}</td>
-<td className="p-3">{money(r.executive_paid_amount)}</td>
-<td className="p-3">{money(r.executive_balance)}</td>
-<td className="p-3 font-semibold">{money(r.expected_gross_margin)}</td>
-<td className="p-3">
-<button onClick={() => openEdit(r)} aria-label={`Edit billing ${r.case_no}`} className="rounded p-2 text-green-600 hover:bg-green-50">
-<Pencil size={17} />
-</button>
-</td>
-</tr>)}</tbody>
-</table>}</div>
-</section>
-<BulkBillingModal open={bulkOpen} cases={cases} onClose={() => setBulkOpen(false)} onCreated={() => load(filters)} />
-<BillingModal open={modalOpen} record={editing} cases={availableCases} onClose={() => { setModalOpen(false); setEditing(null); }} onSave={save} />
-</DashboardLayout>;
+  const {currentUser}=useAuth();
+  const location=useLocation();
+  const [month, setMonth] = useState(monthNow()); const [tab, setTab] = useState<Tab>(location.pathname.includes("payment-register")?"register":"executive");
+  const [filters, setFilters] = useState<Record<string, string>>({}); const [cases, setCases] = useState<Case[]>([]);
+  const [report, setReport] = useState<MonthlyBillingResponse | null>(null); const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(""); const [editing, setEditing] = useState<ExecutiveMonthlyBilling | null>(null);
+  const [register, setRegister] = useState<PaymentRegisterPayload | null>(null);
+  useEffect(() => { void getCases().then(setCases).catch(() => undefined); }, []);
+  const options = useMemo(() => ({ executives: [...new Set(cases.map(x=>x.executive).filter(Boolean))].sort(), banks: [...new Set(cases.map(x=>x.bank).filter(Boolean))].sort(), cities: [...new Set(cases.map(x=>x.city).filter(Boolean))].sort() }), [cases]);
+  const banks = useMemo(() => [...new Set(report?.executive_billing.flatMap(row=>Object.keys(row.bank_counts)) || [])].sort(), [report]);
+  const generate = async () => { setLoading(true); try { setReport(await getMonthlyBilling(month, filters)); setError(""); } catch(e) { setError((e as Error).message); } finally { setLoading(false); } };
+  useEffect(() => { void generate(); }, []);
+  const openRegister = (row: ExecutiveMonthlyBilling) => { if (!row.executive_id || row.rate_status !== "MATCHED") return; setEditing(row); setRegister({ billing_month: month, executive_id: row.executive_id, advance_amount: Number(row.advance), paid_amount: Number(row.paid), finalize: row.is_finalized }); };
+  const submitRegister = async (event: React.FormEvent) => { event.preventDefault(); if (!register) return; try { await savePaymentRegister(register); setEditing(null); setRegister(null); await generate(); } catch(e) { setError((e as Error).message); } };
+  const invalid = !!report && (report.summary.missing_bank_rates > 0 || report.summary.missing_executive_rates > 0 || report.summary.ambiguous_rates > 0);
+  const transition=async(action:"finalize"|"reopen"|"regenerate")=>{if(!window.confirm(action==="finalize"?"Finalize and freeze this month?":action==="reopen"?"Reopen this finalized month?":"Replace snapshots and finalize this month?"))return;try{if(action==="finalize")await finalizeMonth(month);else if(action==="reopen")await reopenMonth(month,"Correction requested from Monthly Billing");else await regenerateMonth(month);await generate()}catch(e){setError((e as Error).message)}};
+  const exportExecutive = (validation = false) => { if (!report || (!validation && (invalid||report.month_status.status!=="FINALIZED"))) { setError("Final export requires a finalized month with all rates matched. Use Validation Export for review."); return; } const rows=report.executive_billing.map(row=>({ NAME:row.executive, RATE:row.rate == null ? "" : Number(row.rate), ...Object.fromEntries(banks.map(bank=>[bank,row.bank_counts[bank]||0])), "TOTAL POINT":row.total_points, "FI PAYMENT":row.gross_payment == null ? "" : Number(row.gross_payment), ADVANCE:Number(row.advance), "NET PAYMENT":row.net_payment == null ? "" : Number(row.net_payment), PAID:Number(row.paid), BALANCE:row.balance == null ? "" : Number(row.balance), STATUS:row.payment_status, ...(validation ? { "RATE STATUS":row.rate_status } : {}) })); write(rows,"Executive Billing",validation?`validation-executive-billing-${month}.xlsx`:`jangid-executive-billing-${month}.xlsx`); };
+  const exportBank = (validation = false) => { if (!report || (!validation && (invalid||report.month_status.status!=="FINALIZED"))) { setError("Final export requires a finalized month with all rates matched. Use Validation Export for review."); return; } const rows=report.bank_billing.map(row=>({ DATE:row.date,BANK:row.bank||"","LOS NO":row.los_no||"",NAME:row.name||"",ADDRESS:row.address||"",CITY:row.city||"",MOBILE:row.mobile||"",STATUS:row.status,REMARK:row.remark||"",RATE:row.rate==null?"":Number(row.rate),...(validation?{"RATE STATUS":row.rate_status}:{}) })); write(rows,"Bank Billing",validation?`validation-bank-billing-${month}.xlsx`:`jangid-bank-billing-${month}.xlsx`); };
+  return <DashboardLayout><section className="space-y-6"><div><p className="text-sm font-semibold uppercase tracking-[.2em] text-orange-600">Billing</p><h1 className="mt-1 text-3xl font-bold dark:text-white">Monthly Automatic Billing</h1><p className="mt-1 text-sm text-slate-500">Positive and Negative cases are included. Pending and blank statuses are excluded.</p>{report&&<div className="mt-3 flex flex-wrap items-center gap-2"><span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-bold text-orange-800">{report.month_status.status}</span><span className="text-sm text-slate-500">Revision {report.month_status.revision_number}</span>{currentUser?.role==="Admin"&&report.month_status.status==="DRAFT"&&<button onClick={()=>void transition("finalize")} className="rounded-xl bg-green-600 px-3 py-2 text-sm text-white">Finalize Month</button>}{currentUser?.role==="Admin"&&report.month_status.status==="FINALIZED"&&<button onClick={()=>void transition("reopen")} className="rounded-xl bg-amber-600 px-3 py-2 text-sm text-white">Reopen Month</button>}{currentUser?.role==="Admin"&&report.month_status.status==="REOPENED"&&<button onClick={()=>void transition("regenerate")} className="rounded-xl bg-green-600 px-3 py-2 text-sm text-white">Regenerate &amp; Finalize</button>}</div>}</div>
+<div className="grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-2 lg:grid-cols-6 dark:border-slate-800 dark:bg-slate-900"><input aria-label="Billing month" type="month" className={control} value={month} onChange={e=>setMonth(e.target.value)}/><Filter value={filters.executive} values={options.executives} label="Executives" onChange={v=>setFilters({...filters,executive:v})}/><Filter value={filters.bank} values={options.banks} label="Banks" onChange={v=>setFilters({...filters,bank:v})}/><Filter value={filters.city} values={options.cities} label="Cities" onChange={v=>setFilters({...filters,city:v})}/><Filter value={filters.status} values={["Positive","Negative"]} label="Statuses" onChange={v=>setFilters({...filters,status:v})}/><button onClick={()=>void generate()} disabled={loading||!month} className="flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-2 text-white disabled:opacity-50"><RefreshCw size={17}/>{loading?"Generating…":"Generate"}</button></div>
+  {error&&<p className="rounded-xl bg-red-50 p-3 text-red-700">{error}</p>}{report&&<><div className="grid grid-cols-2 gap-3 lg:grid-cols-7">{Object.entries(report.summary).map(([key,value])=><article key={key} className="rounded-xl border bg-white p-3"><p className="text-xs capitalize text-slate-500">{key.replaceAll("_"," ")}</p><p className="mt-1 text-lg font-bold">{key.startsWith("total_")&&typeof value==="string"?money(value):value}</p></article>)}</div><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex gap-2">{(["executive","bank","register"] as Tab[]).map(value=><button key={value} onClick={()=>setTab(value)} className={`rounded-xl px-4 py-2 font-semibold ${tab===value?"bg-slate-900 text-white":"border"}`}>{value==="executive"?"Executive Billing":value==="bank"?"Bank Billing":"Payment Register"}</button>)}</div><div className="flex gap-2"><button onClick={()=>tab==="bank"?exportBank(true):exportExecutive(true)} className="rounded-xl border px-3 py-2 text-sm">Validation Export</button><button onClick={()=>tab==="bank"?exportBank():exportExecutive()} disabled={tab==="register"} className="flex items-center gap-2 rounded-xl bg-green-600 px-3 py-2 text-sm text-white disabled:opacity-40"><Download size={16}/>Final Export</button></div></div>{tab==="bank"?<BankTable report={report}/>:<ExecutiveTable rows={report.executive_billing} banks={banks} register={tab==="register"} onEdit={openRegister}/>}</>}
+  {editing&&register&&<div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4"><form onSubmit={submitRegister} className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-6"><div><h2 className="text-xl font-bold">Payment Register</h2><p className="text-sm text-slate-500">{editing.executive} · {month} · Gross {money(editing.gross_payment)}</p></div><label className="block">Advance<input className={`${control} mt-1 w-full`} type="number" min="0" step="0.01" value={register.advance_amount} onChange={e=>setRegister({...register,advance_amount:Number(e.target.value)})}/></label><label className="block">Paid Amount<input className={`${control} mt-1 w-full`} type="number" min="0" step="0.01" value={register.paid_amount} onChange={e=>setRegister({...register,paid_amount:Number(e.target.value)})}/></label><label className="block">Payment Date<input className={`${control} mt-1 w-full`} type="date" value={register.payment_date||""} onChange={e=>setRegister({...register,payment_date:e.target.value||null})}/></label><label className="block">Reference<input className={`${control} mt-1 w-full`} value={register.payment_reference||""} onChange={e=>setRegister({...register,payment_reference:e.target.value||null})}/></label><label className="block">Remarks<textarea className={`${control} mt-1 w-full`} value={register.remarks||""} onChange={e=>setRegister({...register,remarks:e.target.value||null})}/></label><label className="flex gap-2"><input type="checkbox" checked={register.finalize||false} onChange={e=>setRegister({...register,finalize:e.target.checked})}/>Finalize this monthly snapshot</label><div className="flex justify-end gap-2"><button type="button" onClick={()=>setEditing(null)} className="rounded-xl border px-4 py-2">Cancel</button><button className="rounded-xl bg-orange-600 px-4 py-2 text-white">Save Register</button></div></form></div>}</section></DashboardLayout>;
 }
+
+function Filter({value,values,label,onChange}:{value?:string;values:string[];label:string;onChange:(value:string)=>void}) { return <select className={control} value={value||""} onChange={e=>onChange(e.target.value)}><option value="">All {label}</option>{values.map(value=><option key={value}>{value}</option>)}</select>; }
+function Badge({status}:{status:string}) { return <span className={`rounded-full px-2 py-1 text-xs font-semibold ${status==="MATCHED"?"bg-green-100 text-green-700":"bg-red-100 text-red-700"}`}>{status}</span>; }
+function ExecutiveTable({rows,banks,register,onEdit}:{rows:ExecutiveMonthlyBilling[];banks:string[];register:boolean;onEdit:(row:ExecutiveMonthlyBilling)=>void}) { return <div className="overflow-x-auto rounded-2xl border bg-white"><table className="w-full min-w-[1300px] text-sm"><thead className="bg-slate-900 text-white"><tr>{["NAME","RATE",...banks,"TOTAL POINT","FI PAYMENT","ADVANCE","NET PAYMENT","PAID","BALANCE","STATUS",...(register?["ACTION"]:[])].map(h=><th key={h} className="p-3 text-left">{h}</th>)}</tr></thead><tbody>{rows.map(row=><tr key={row.executive} className="border-b"><td className="p-3 font-medium">{row.executive}</td><td className="p-3">{row.rate_status==="MATCHED"?row.rate_display:<Badge status={row.rate_status}/>}</td>{banks.map(bank=><td key={bank} className="p-3">{row.bank_counts[bank]||0}</td>)}<td className="p-3">{row.total_points}</td><td className="p-3">{money(row.gross_payment)}</td><td className="p-3">{money(row.advance)}</td><td className="p-3">{money(row.net_payment)}</td><td className="p-3">{money(row.paid)}</td><td className="p-3">{money(row.balance)}</td><td className="p-3">{row.payment_status}{row.is_finalized?" · Finalized":""}</td>{register&&<td className="p-3"><button disabled={!row.executive_id||row.rate_status!=="MATCHED"} onClick={()=>onEdit(row)} className="rounded-lg bg-orange-50 px-3 py-1.5 text-orange-700 disabled:opacity-40">Edit</button></td>}</tr>)}</tbody></table></div>; }
+function BankTable({report}:{report:MonthlyBillingResponse}) { return <div className="overflow-x-auto rounded-2xl border bg-white"><table className="w-full min-w-[1400px] text-sm"><thead className="bg-slate-900 text-white"><tr>{["DATE","BANK","LOS NO","NAME","ADDRESS","CITY","MOBILE","STATUS","REMARK","RATE"].map(h=><th key={h} className="p-3 text-left">{h}</th>)}</tr></thead><tbody>{report.bank_billing.map(row=><tr key={row.case_id} className="border-b"><td className="p-3">{row.date}</td><td className="p-3">{row.bank||"—"}</td><td className="p-3">{row.los_no||""}</td><td className="p-3">{row.name||"—"}</td><td className="max-w-sm p-3">{row.address||"—"}</td><td className="p-3">{row.city||"—"}</td><td className="p-3">{row.mobile||"—"}</td><td className="p-3">{row.status}</td><td className="p-3">{row.remark||"—"}</td><td className="p-3">{row.rate_status==="MATCHED"?money(row.rate):<Badge status={row.rate_status}/>}</td></tr>)}</tbody></table></div>; }
+function write(rows:Record<string,unknown>[],sheetName:string,filename:string) { const sheet=XLSX.utils.json_to_sheet(rows); sheet["!cols"]=rows.length?Object.keys(rows[0]).map(key=>({wch:Math.max(12,key.length+2)})):[]; const book=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(book,sheet,sheetName); XLSX.writeFile(book,filename,{compression:true}); }
