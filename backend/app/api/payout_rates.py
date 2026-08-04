@@ -4,11 +4,12 @@ from sqlalchemy.orm import Session
 from app.core.security import require_roles
 from app.db.database import get_db
 from app.models.user import User
-from app.schemas.payout_rate import (BankRateCreate, BankRateResponse, BankRateUpdate,
+from app.schemas.payout_rate import (BankRateBulkCreate, BankRateBulkResponse, BankRateCreate, BankRateResponse, BankRateUpdate,
     ExecutiveRateCreate, ExecutiveRateResponse, ExecutiveRateUpdate, RateImportRequest, RateImportResponse)
-from app.services.payout_rate_service import create_rate, import_rates, list_rates, update_rate
+from app.services.payout_rate_service import create_bank_rates_bulk, create_rate, import_rates, list_rates, update_rate
 
 router = APIRouter(prefix="/billing/rates", tags=["billing rates"])
+bulk_router = APIRouter(prefix="/payout-rates", tags=["billing rates"])
 access = Depends(require_roles("Admin", "Manager"))
 
 
@@ -20,6 +21,12 @@ def get_bank_rates(search: str | None = None, active: bool | None = None, db: Se
 @router.post("/bank", response_model=BankRateResponse, status_code=status.HTTP_201_CREATED)
 def add_bank_rate(payload: BankRateCreate, db: Session = Depends(get_db), user: User = access):
     return create_rate(db, "bank", payload, user)
+
+
+@router.post("/bank/bulk", response_model=BankRateBulkResponse, status_code=status.HTTP_201_CREATED)
+@bulk_router.post("/bank/bulk", response_model=BankRateBulkResponse, status_code=status.HTTP_201_CREATED)
+def add_bank_rates_bulk(payload: BankRateBulkCreate, db: Session = Depends(get_db), user: User = access):
+    return create_bank_rates_bulk(db, payload, user)
 
 
 @router.put("/bank/{rate_id}", response_model=BankRateResponse)

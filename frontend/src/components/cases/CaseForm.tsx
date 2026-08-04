@@ -158,14 +158,14 @@ export default function CaseForm({ register, errors, watch, setValue }: Props) {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">Bank</label>
+          <label className="mb-1 block text-sm font-medium">Bank / Finance Company</label>
 
           <select
             {...register("bank")}
             className="w-full rounded-lg border bg-white px-3 py-2"
             disabled={loadingMasters}
           >
-            <option value="">Select bank</option>
+            <option value="">Select bank / finance company</option>
             {bankOptions.map((bank) => (
               <option key={bank.id} value={bank.name}>
                 {bank.name}

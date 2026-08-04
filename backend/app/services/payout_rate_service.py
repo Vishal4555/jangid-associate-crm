@@ -13,7 +13,7 @@ from app.models.master import Bank, Company, District, Executive, LoanType, Prod
 from app.models.payout_rate import BankPayoutRate, ExecutivePayoutRate
 from app.models.user import User
 from app.schemas.payout_rate import (
-    BankRateCreate, BankRateResponse, ExecutiveRateCreate, ExecutiveRateResponse,
+    BankRateBulkCreate, BankRateBulkResponse, BankRateCreate, BankRateResponse, ExecutiveRateCreate, ExecutiveRateResponse,
     RateImportRequest, RateImportResponse, RateImportResultRow,
 )
 
@@ -116,6 +116,40 @@ def create_rate(db: Session, kind: str, payload, user: User, commit: bool = True
     if not commit:
         return rate
     return _bank_response(rate) if kind == "bank" else _executive_response(rate)
+
+
+def create_bank_rates_bulk(db: Session, payload: BankRateBulkCreate, user: User) -> BankRateBulkResponse:
+    bank_ids = list(dict.fromkeys(payload.bank_ids))
+    common = payload.model_dump(exclude={"bank_ids"})
+    validated: list[tuple[Bank, dict]] = []
+    errors: list[str] = []
+    conflict = False
+    for bank_id in bank_ids:
+        bank = db.get(Bank, bank_id)
+        bank_label = bank.name if bank else f"ID {bank_id}"
+        data = {**common, "bank_id": bank_id}
+        try:
+            _ensure_refs(db, data)
+            _ensure_no_overlap(db, BankPayoutRate, data)
+            validated.append((bank, data))
+        except HTTPException as exc:
+            conflict = conflict or exc.status_code == status.HTTP_409_CONFLICT
+            errors.append(f"{bank_label}: {exc.detail}")
+    if errors:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT if conflict else 422, detail="; ".join(errors))
+    rows = [BankPayoutRate(**data, created_by_user_id=user.id, updated_by_user_id=user.id) for _, data in validated]
+    try:
+        db.add_all(rows)
+        db.flush()
+        ids = [row.id for row in rows]
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    saved = db.query(BankPayoutRate).options(joinedload(BankPayoutRate.bank), joinedload(BankPayoutRate.company),
+        joinedload(BankPayoutRate.district)).filter(BankPayoutRate.id.in_(ids)).order_by(BankPayoutRate.id).all()
+    return BankRateBulkResponse(created_count=len(saved), failed_count=0,
+        items=[_bank_response(row) for row in saved], errors=[])
 
 
 def update_rate(db: Session, kind: str, rate_id: int, payload, user: User):

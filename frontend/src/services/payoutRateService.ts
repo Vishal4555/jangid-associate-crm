@@ -1,5 +1,5 @@
 import API from "../api/caseApi";
-import type { ImportRateRow, ImportResult, PayoutRate, RateKind, RatePayload } from "../types/payoutRate";
+import type { BankRateBulkPayload, BankRateBulkResult, ImportRateRow, ImportResult, PayoutRate, RateKind, RatePayload } from "../types/payoutRate";
 
 function message(error: unknown) {
   const e = error as { response?: { data?: { detail?: string } } };
@@ -11,6 +11,10 @@ export async function listPayoutRates(kind: RateKind, search = "") {
 }
 export async function savePayoutRate(kind: RateKind, payload: RatePayload, id?: number) {
   try { return (id ? await API.put<PayoutRate>(`/billing/rates/${kind}/${id}`, payload) : await API.post<PayoutRate>(`/billing/rates/${kind}`, payload)).data; }
+  catch (error) { throw message(error); }
+}
+export async function bulkCreateBankRates(payload: BankRateBulkPayload) {
+  try { return (await API.post<BankRateBulkResult>("/payout-rates/bank/bulk", payload)).data; }
   catch (error) { throw message(error); }
 }
 export async function importPayoutRates(kind: RateKind, rows: ImportRateRow[], confirm: boolean) {

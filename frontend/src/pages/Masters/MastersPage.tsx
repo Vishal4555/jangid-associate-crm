@@ -36,7 +36,7 @@ type DialogMode = "create" | "edit" | null;
 type DialogValues = Record<string, string>;
 
 const tabs: TabConfig[] = [
-  { key: "banks", title: "Banks", subtitle: "Bank masters" },
+  { key: "banks", title: "Banks / Finance Companies", subtitle: "Global bank and finance company master" },
   { key: "branches", title: "Branches", subtitle: "Branch masters" },
   { key: "executives", title: "Executives", subtitle: "Executive masters" },
   { key: "loan-types", title: "Loan Types", subtitle: "Loan master values" },
@@ -101,7 +101,7 @@ function columnsFor(master: MasterKey): ColumnConfig[] {
       ];
     case "branches":
       return [
-        { header: "Bank", render: (record) => (record as Branch).bank_name },
+        { header: "Bank / Finance Company", render: (record) => (record as Branch).bank_name },
         { header: "Branch", render: (record) => (record as Branch).name },
         { header: "Code", render: (record) => (record as Branch).code ?? "-" },
       ];
@@ -390,7 +390,7 @@ export default function MastersPage() {
           <p className="text-sm uppercase tracking-[0.32em] text-slate-500">Masters</p>
           <h1 className="mt-2 text-3xl font-semibold text-slate-900">Reference Data</h1>
           <p className="mt-2 text-sm text-slate-600">
-            Maintain banks, branches, executives, loan types, and product types in one place.
+            Maintain global banks / finance companies, branches, executives, loan types, and product types in one place.
           </p>
         </div>
 
@@ -666,16 +666,16 @@ function MasterDialog({
         <form onSubmit={onSubmit} className="space-y-5 px-6 py-6">
           {master === "branches" && (
             <label className="block text-sm font-medium text-slate-700">
-              Bank
+              Bank / Finance Company
               <select
                 value={values.bank_id}
                 onChange={(event) => onChange({ ...values, bank_id: event.target.value })}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-orange-500 focus:bg-white"
                 required
               >
-                <option value="">Select bank</option>
+                <option value="">Select bank / finance company</option>
                 {loadingBanks ? (
-                  <option value="">Loading banks...</option>
+                  <option value="">Loading banks / finance companies...</option>
                 ) : (
                   banks.map((bank) => (
                     <option key={bank.id} value={bank.id}>

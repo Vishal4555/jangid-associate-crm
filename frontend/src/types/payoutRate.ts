@@ -14,6 +14,8 @@ export interface RatePayload {
   loan_type?: string | null; product_type?: string | null; payout_rate: number; effective_from: string;
   effective_to?: string | null; is_active: boolean; remarks?: string | null;
 }
+export interface BankRateBulkPayload extends Omit<RatePayload,"bank_id"|"executive_id"> { company_id:number; bank_ids:number[]; district_id:number }
+export interface BankRateBulkResult { created_count:number; failed_count:number; items:BankRate[]; errors:string[] }
 export interface ImportRateRow {
   row_number: number; company?:string; bank?: string; district?:string; executive?: string; state?: string; city?: string; location?: string;
   loan_type?: string; product_type?: string; payout_rate?: number; effective_from?: string;

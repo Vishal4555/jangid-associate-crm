@@ -46,6 +46,18 @@ class BankRateCreate(RateBase):
         return clean(value) if isinstance(value, str) or value is None else value
 
 
+class BankRateBulkCreate(RateBase):
+    company_id: int
+    bank_ids: list[int] = Field(min_length=1, max_length=10000)
+    district_id: int
+    state: str | None = "Rajasthan"
+
+    @field_validator("state", mode="before")
+    @classmethod
+    def trim_state(cls, value):
+        return clean(value) if isinstance(value, str) or value is None else value
+
+
 class ExecutiveRateCreate(RateBase):
     executive_id: int
     bank_id: int | None = None
@@ -76,6 +88,13 @@ class BankRateResponse(RateResponseBase):
     district_id: int | None
     district_name: str | None
     state: str | None
+
+
+class BankRateBulkResponse(BaseModel):
+    created_count: int
+    failed_count: int
+    items: list[BankRateResponse]
+    errors: list[str]
 
 
 class ExecutiveRateResponse(RateResponseBase):
