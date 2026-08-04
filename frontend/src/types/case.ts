@@ -4,6 +4,7 @@ export interface Case {
   id: number;
 
   case_no: string;
+  los_no: string;
   receive_date: string;
   closed_date: string;
 
@@ -39,6 +40,7 @@ export type CaseStatusFilter = "All" | CaseStatus;
 
 export interface CaseFormPayload {
   case_no: string;
+  los_no?: string | null;
   receive_date?: string;
   bank?: string;
   branch?: string;

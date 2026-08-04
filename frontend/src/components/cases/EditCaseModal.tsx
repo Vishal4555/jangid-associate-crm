@@ -20,6 +20,7 @@ type Props = {
 
 const defaultValues: CaseFormData = {
 	case_no: "",
+	los_no: "",
 	receive_date: "",
 	bank: "",
 	branch: "",
@@ -41,6 +42,7 @@ const defaultValues: CaseFormData = {
 function toFormValues(item: Case): CaseFormData {
 	return {
 		case_no: item.case_no,
+		los_no: item.los_no,
 		receive_date: item.receive_date,
 		bank: item.bank,
 		branch: item.branch,

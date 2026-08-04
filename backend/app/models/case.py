@@ -10,6 +10,8 @@ class Case(Base):
 
     case_no = Column(String(100), unique=True, nullable=False)
 
+    los_no = Column(String(100), nullable=True)
+
     receive_date = Column(Date)
 
     closed_date = Column(Date, nullable=True)

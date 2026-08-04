@@ -19,6 +19,7 @@ type Props = {
 
 const defaultValues: CaseFormData = {
   case_no: "",
+  los_no: "",
   receive_date: "",
   bank: "",
   branch: "",

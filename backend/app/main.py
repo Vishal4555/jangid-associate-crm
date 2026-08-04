@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 MAX_REQUEST_BODY_SIZE = 2 * 1024 * 1024
 
 ACTIVITY_TYPES_BY_FIELD = {
+    "los_no": "LOS_NUMBER_CHANGED",
     "status": "STATUS_CHANGED",
     "executive": "EXECUTIVE_CHANGED",
     "bank": "BANK_CHANGED",
@@ -50,6 +51,7 @@ ACTIVITY_TYPES_BY_FIELD = {
     "closed_date": "CLOSED_DATE_CHANGED",
 }
 INITIAL_ACTIVITY_FIELDS = (
+    "los_no",
     "status",
     "executive",
     "bank",

@@ -10,6 +10,7 @@ import type {
 export type CaseApiResponse = {
   id: number;
   case_no: string;
+  los_no: string | null;
   receive_date: string | null;
   closed_date: string | null;
   bank: string | null;
@@ -33,6 +34,7 @@ export function mapCaseResponse(data: CaseApiResponse): Case {
   return {
     id: data.id,
     case_no: data.case_no,
+    los_no: data.los_no ?? "",
     receive_date: data.receive_date ?? "",
     closed_date: data.closed_date ?? "",
     bank: data.bank ?? "",
@@ -60,7 +62,7 @@ function cleanPayload(payload: CaseFormPayload): CaseFormPayload {
   const entries = Object.entries(payload).map(([key, value]) => {
     if (typeof value === "string") {
       const trimmed = value.trim();
-      if (key === "next_follow_up_at" || key === "follow_up_note") {
+      if (key === "next_follow_up_at" || key === "follow_up_note" || key === "los_no") {
         return [key, trimmed === "" ? null : trimmed];
       }
       return [key, trimmed === "" ? undefined : trimmed];

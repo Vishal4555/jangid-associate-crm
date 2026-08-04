@@ -25,6 +25,7 @@ const ACTIVITY_LABELS: Record<string, string> = {
   ADDRESS_CHANGED: "Address Changed",
   APPLICANT_CHANGED: "Applicant Changed",
   MOBILE_CHANGED: "Mobile Changed",
+  LOS_NUMBER_CHANGED: "LOS Number Changed",
   FOLLOW_UP_CHANGED: "Follow-up Changed",
   FOLLOW_UP_NOTE_CHANGED: "Follow-up Note Changed",
   CLOSED_DATE_CHANGED: "Closed Date Changed",
@@ -132,6 +133,7 @@ export default function ViewCaseModal({ open, caseItem, onClose }: Props) {
                 <div className="mt-2"><StatusBadge status={caseItem.status} /></div>
               </div>
               <div className="grid grid-cols-1 gap-x-8 gap-y-5 md:grid-cols-2">
+                <DetailField label="LOS / Application No" value={caseItem.los_no} />
                 <DetailField label="Applicant" value={caseItem.applicant} />
                 <DetailField label="Receive Date" value={caseItem.receive_date} />
                 <DetailField label="Bank" value={caseItem.bank} />

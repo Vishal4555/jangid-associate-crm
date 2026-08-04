@@ -3,6 +3,8 @@ import { z } from "zod";
 export const caseSchema = z.object({
   case_no: z.string().min(1, "Case No is required"),
 
+  los_no: z.string().max(100, "LOS No must be 100 characters or fewer").optional(),
+
   receive_date: z.string().optional(),
 
   bank: z.string().optional(),

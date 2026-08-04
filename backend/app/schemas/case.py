@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict
 
 
 class CaseBase(BaseModel):
+    los_no: Optional[str] = None
     receive_date: Optional[date] = None
     bank: Optional[str] = None
     branch: Optional[str] = None

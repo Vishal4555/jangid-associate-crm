@@ -119,6 +119,12 @@ export default function CaseForm({ register, errors, watch, setValue }: Props) {
         </div>
 
         <div>
+          <label className="mb-1 block text-sm font-medium">LOS / Application No</label>
+          <input {...register("los_no")} maxLength={100} className="w-full rounded-lg border px-3 py-2" />
+          {errors.los_no && <p className="mt-1 text-sm text-red-500">{errors.los_no.message}</p>}
+        </div>
+
+        <div>
           <label className="mb-1 block text-sm font-medium">Receive Date</label>
 
           <input
