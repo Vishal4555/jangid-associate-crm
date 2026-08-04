@@ -31,6 +31,7 @@ from app.schemas.master import (
     ProductTypeUpdate,
     CompanyCreate, CompanyUpdate, CompanyResponse, CompanyPageResponse,
     CompanyBankCreate, CompanyBankUpdate, CompanyBankResponse, CompanyBankPageResponse,
+    CompanyBankBulkCreate, CompanyBankBulkResponse,
     DistrictCreate, DistrictUpdate, DistrictResponse, DistrictPageResponse,
 )
 from app.services.masters_service import (
@@ -287,6 +288,45 @@ def add_company_bank(payload: CompanyBankCreate, db: Session = Depends(get_db), 
     try: db.commit(); db.refresh(row)
     except IntegrityError as exc: db.rollback(); raise HTTPException(status_code=409, detail="Bank is already mapped to this company") from exc
     return db.query(CompanyBank).options(joinedload(CompanyBank.company), joinedload(CompanyBank.bank)).get(row.id)
+
+
+@router.post("/company-banks/bulk", response_model=CompanyBankBulkResponse)
+def add_company_banks_bulk(payload: CompanyBankBulkCreate, db: Session = Depends(get_db), _: User = company_write_access):
+    company = db.get(Company, payload.company_id)
+    if company is None: raise HTTPException(status_code=422, detail="Company not found")
+    if not company.is_active: raise HTTPException(status_code=422, detail="Company is inactive")
+    bank_ids = list(dict.fromkeys(payload.bank_ids))
+    banks = db.query(Bank).filter(Bank.id.in_(bank_ids)).all()
+    by_id = {bank.id: bank for bank in banks}
+    missing = [bank_id for bank_id in bank_ids if bank_id not in by_id]
+    if missing: raise HTTPException(status_code=422, detail=f"Bank IDs not found: {missing}")
+    inactive = [bank.id for bank in banks if getattr(bank, "is_active", True) is False]
+    if inactive: raise HTTPException(status_code=422, detail=f"Bank IDs are inactive: {inactive}")
+    existing = {row.bank_id: row for row in db.query(CompanyBank).filter(
+        CompanyBank.company_id == company.id, CompanyBank.bank_id.in_(bank_ids)).all()}
+    created_count = reactivated_count = skipped_count = 0
+    touched: list[CompanyBank] = []
+    remarks = payload.remarks.strip() if payload.remarks and payload.remarks.strip() else None
+    for bank_id in bank_ids:
+        row = existing.get(bank_id)
+        if row is None:
+            row = CompanyBank(company_id=company.id, bank_id=bank_id, is_active=True, remarks=remarks)
+            db.add(row); touched.append(row); created_count += 1
+        elif not row.is_active:
+            row.is_active = True
+            if remarks is not None: row.remarks = remarks
+            touched.append(row); reactivated_count += 1
+        else:
+            touched.append(row); skipped_count += 1
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback(); raise HTTPException(status_code=409, detail="Company-bank mapping conflict") from exc
+    ids = [row.id for row in touched]
+    items = db.query(CompanyBank).options(joinedload(CompanyBank.company), joinedload(CompanyBank.bank)).filter(
+        CompanyBank.id.in_(ids)).order_by(CompanyBank.id).all()
+    return CompanyBankBulkResponse(created_count=created_count, reactivated_count=reactivated_count,
+        skipped_count=skipped_count, items=items)
 
 
 @router.put("/company-banks/{item_id}", response_model=CompanyBankResponse)

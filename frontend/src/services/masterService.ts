@@ -7,6 +7,8 @@ import type {
   MasterRecord,
   MasterRecordMap,
   PageResponse,
+  CompanyBankBulkRequest,
+  CompanyBankBulkResponse,
 } from "../types/master";
 
 function toErrorMessage(error: unknown): Error {
@@ -134,6 +136,14 @@ export async function deleteMasterRecord<K extends MasterKey>(
   try {
     const response = await API.delete<{ message: string }>(`${routeFor(master)}/${id}`);
     return response.data;
+  } catch (error) {
+    throw toErrorMessage(error);
+  }
+}
+
+export async function bulkCompanyBanks(payload: CompanyBankBulkRequest): Promise<CompanyBankBulkResponse> {
+  try {
+    return (await API.post<CompanyBankBulkResponse>("/masters/company-banks/bulk", payload)).data;
   } catch (error) {
     throw toErrorMessage(error);
   }

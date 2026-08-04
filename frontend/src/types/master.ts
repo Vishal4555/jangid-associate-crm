@@ -65,6 +65,8 @@ export interface ProductType {
 
 export interface Company { id:number; name:string; code:string|null; source_type:"WhatsApp"|"Email"|"Both"|"Other"; contact_person:string|null; email:string|null; mobile:string|null; is_active:boolean; remarks:string|null; created_at:string; updated_at:string }
 export interface CompanyBank { id:number; company_id:number; company_name:string; bank_id:number; bank_name:string; is_active:boolean; remarks:string|null; created_at:string; updated_at:string }
+export interface CompanyBankBulkRequest { company_id:number; bank_ids:number[]; remarks?:string }
+export interface CompanyBankBulkResponse { created_count:number; reactivated_count:number; skipped_count:number; items:CompanyBank[] }
 export interface District { id:number; name:string; state:string; is_active:boolean }
 
 export type MasterRecord = Bank | Branch | Executive | LoanType | ProductType | Company | CompanyBank | District;

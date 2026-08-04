@@ -210,6 +210,19 @@ class CompanyBankResponse(CompanyBankBase):
 class CompanyBankPageResponse(PaginationMeta): items: list[CompanyBankResponse]
 
 
+class CompanyBankBulkCreate(BaseModel):
+    company_id: int
+    bank_ids: list[int] = Field(min_length=1, max_length=10000)
+    remarks: Optional[str] = None
+
+
+class CompanyBankBulkResponse(BaseModel):
+    created_count: int
+    reactivated_count: int
+    skipped_count: int
+    items: list[CompanyBankResponse]
+
+
 class DistrictBase(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     state: str = Field(default="Rajasthan", max_length=100)
