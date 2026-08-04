@@ -24,6 +24,39 @@ class BillingMonth(Base):
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
 
+class ExecutiveMonthlyPayment(Base):
+    __tablename__ = "executive_monthly_payments"
+    __table_args__ = (
+        UniqueConstraint("billing_month", "executive_id", name="uq_monthly_payment_month_executive"),
+        CheckConstraint("gross_payment >= 0", name="ck_monthly_payment_gross_nonnegative"),
+        CheckConstraint("advance_amount >= 0", name="ck_monthly_payment_advance_nonnegative"),
+        CheckConstraint("net_payment >= 0", name="ck_monthly_payment_net_nonnegative"),
+        CheckConstraint("paid_amount >= 0 AND paid_amount <= net_payment", name="ck_monthly_payment_paid_valid"),
+        CheckConstraint("balance_amount = net_payment - paid_amount", name="ck_monthly_payment_balance_consistent"),
+        CheckConstraint("status IN ('Pending', 'Partially Paid', 'Paid', 'Done')", name="ck_monthly_payment_status"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    billing_month = Column(Date, nullable=False, index=True)
+    executive_id = Column(Integer, ForeignKey("executives.id", ondelete="RESTRICT"), nullable=False, index=True)
+    gross_payment = Column(Numeric(14, 2), nullable=False)
+    advance_amount = Column(Numeric(14, 2), nullable=False, default=0, server_default="0")
+    net_payment = Column(Numeric(14, 2), nullable=False)
+    paid_amount = Column(Numeric(14, 2), nullable=False, default=0, server_default="0")
+    balance_amount = Column(Numeric(14, 2), nullable=False)
+    status = Column(String(30), nullable=False, default="Pending", server_default="Pending")
+    payment_date = Column(Date, nullable=True)
+    payment_reference = Column(String(200), nullable=True)
+    remarks = Column(Text, nullable=True)
+    is_finalized = Column(Boolean, nullable=False, default=False, server_default="false")
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    updated_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    executive = relationship("Executive")
+
+
 class ExecutiveMonthlyBillingSnapshot(Base):
     __tablename__ = "executive_monthly_billing_snapshots"
     __table_args__ = (

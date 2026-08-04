@@ -140,7 +140,7 @@ class MonthlyBillingTests(unittest.TestCase):
         self.db.delete(first); self.db.commit()
         with self.assertRaises(HTTPException) as conflict: finalize_month(self.db, "2026-06", None, self.user, regenerate=True)
         self.assertEqual(conflict.exception.status_code, 409)
-        payment = self.db.query(__import__('app.models.payout_rate', fromlist=['ExecutiveMonthlyPayment']).ExecutiveMonthlyPayment).one()
+        payment = self.db.query(__import__('app.models.billing_month', fromlist=['ExecutiveMonthlyPayment']).ExecutiveMonthlyPayment).one()
         payment.paid_amount=Decimal("100"); payment.balance_amount=Decimal("100"); self.db.commit()
         regenerated=finalize_month(self.db, "2026-06", None, self.user, regenerate=True)
         self.assertEqual((regenerated.status, regenerated.revision_number), ("FINALIZED", 1))
