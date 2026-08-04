@@ -27,12 +27,14 @@ def read_monthly_billing(
     month: str,
     executive: str | None = None,
     bank: str | None = None,
+    company: str | None = None,
+    district: str | None = None,
     city: str | None = None,
     status: str | None = None,
     db: Session = Depends(get_db),
     _: User = access,
 ):
-    return monthly_billing(db, month, executive, bank, city, status)
+    return monthly_billing(db, month, executive, bank, city, status, company, district)
 
 
 @router.post("/monthly/payment-register", response_model=PaymentRegisterResponse)
@@ -71,8 +73,9 @@ def update_bank_payment(payload: BankPaymentUpdate, db: Session = Depends(get_db
 
 
 @router.get("/dashboard", response_model=BillingDashboardResponse)
-def read_billing_dashboard(month: str, db: Session = Depends(get_db), _: User = access):
-    return billing_dashboard(db, month)
+def read_billing_dashboard(month: str, company: str | None = None, bank: str | None = None,
+    district: str | None = None, db: Session = Depends(get_db), _: User = access):
+    return billing_dashboard(db, month, company, bank, district)
 
 
 @router.post("/bulk-preview", response_model=BulkPreviewResponse)

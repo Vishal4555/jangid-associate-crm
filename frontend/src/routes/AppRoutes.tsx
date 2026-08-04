@@ -10,6 +10,7 @@ const BillingPage = lazy(() => import("../pages/Billing/BillingPage"));
 const RateMastersPage = lazy(() => import("../pages/Billing/RateMastersPage"));
 const BillingDashboardPage = lazy(() => import("../pages/Billing/BillingDashboardPage"));
 const MastersPage = lazy(() => import("../pages/Masters"));
+const CompanyMasterPage = lazy(() => import("../pages/Masters/CompanyMasterPage"));
 const SearchPage = lazy(() => import("../pages/Search/SearchPage"));
 const ReportsPage = lazy(() => import("../pages/Reports/ReportsPage"));
 const UsersPage = lazy(() => import("../pages/Users/UsersPage"));
@@ -82,6 +83,7 @@ export default function AppRoutes() {
         />
 
         <Route path="/search" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
+        <Route path="/masters/companies" element={<RoleRoute allowedRoles={["Admin", "Manager"]}><CompanyMasterPage /></RoleRoute>} />
         <Route path="/reports" element={<RoleRoute allowedRoles={["Admin", "Manager"]}><ReportsPage /></RoleRoute>} />
         <Route path="/billing" element={<RoleRoute allowedRoles={["Admin", "Manager"]}><BillingPage /></RoleRoute>} />
         <Route path="/billing/payment-register" element={<RoleRoute allowedRoles={["Admin", "Manager"]}><BillingPage /></RoleRoute>} />

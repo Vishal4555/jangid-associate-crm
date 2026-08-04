@@ -92,11 +92,13 @@ class BankMonthlyBillingSnapshot(Base):
     billing_month_id = Column(Integer, ForeignKey("billing_months.id", ondelete="CASCADE"), nullable=False, index=True)
     case_id = Column(Integer, ForeignKey("cases.id", ondelete="SET NULL"), index=True)
     date = Column(Date, nullable=False)
+    company = Column(String(200))
     bank = Column(String(200))
     los_no = Column(String(200))
     applicant = Column(String(255))
     address = Column(Text)
     city = Column(String(100))
+    district = Column(String(100))
     mobile = Column(String(50))
     case_status = Column(String(100), nullable=False)
     remark = Column(Text)
@@ -108,14 +110,16 @@ class BankMonthlyBillingSnapshot(Base):
 class BankMonthlyPayment(Base):
     __tablename__ = "bank_monthly_payments"
     __table_args__ = (
-        UniqueConstraint("billing_month", "bank", "city", name="uq_bank_payment_month_bank_city"),
+        UniqueConstraint("billing_month", "company", "bank", "district", name="uq_bank_payment_month_company_bank_district"),
         CheckConstraint("billed_amount >= 0 AND received_amount >= 0 AND received_amount <= billed_amount", name="ck_bank_payment_amounts"),
         CheckConstraint("balance_amount = billed_amount - received_amount", name="ck_bank_payment_balance"),
         CheckConstraint("status IN ('Pending', 'Partially Paid', 'Paid', 'Cancelled')", name="ck_bank_payment_status"),
     )
     id = Column(Integer, primary_key=True)
     billing_month = Column(Date, nullable=False, index=True)
+    company = Column(String(200), nullable=False, default="", server_default="", index=True)
     bank = Column(String(200), nullable=False, index=True)
+    district = Column(String(100), nullable=False, default="", server_default="", index=True)
     city = Column(String(100), nullable=False, default="", server_default="", index=True)
     billed_amount = Column(Numeric(14, 2), nullable=False)
     received_amount = Column(Numeric(14, 2), nullable=False, server_default="0")

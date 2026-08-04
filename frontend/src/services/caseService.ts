@@ -14,6 +14,10 @@ export type CaseApiResponse = {
   receive_date: string | null;
   closed_date: string | null;
   bank: string | null;
+  company_id: number | null;
+  company: string | null;
+  district_id: number | null;
+  district: string | null;
   branch: string | null;
   loan_type: string | null;
   applicant: string | null;
@@ -38,6 +42,10 @@ export function mapCaseResponse(data: CaseApiResponse): Case {
     receive_date: data.receive_date ?? "",
     closed_date: data.closed_date ?? "",
     bank: data.bank ?? "",
+    company_id: data.company_id,
+    company: data.company ?? "",
+    district_id: data.district_id,
+    district: data.district ?? "",
     branch: data.branch ?? "",
     loan_type: data.loan_type ?? "",
     applicant: data.applicant ?? "",

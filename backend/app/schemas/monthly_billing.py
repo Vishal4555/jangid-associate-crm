@@ -33,11 +33,13 @@ class ExecutiveMonthlyRow(BaseModel):
 class BankMonthlyRow(BaseModel):
     case_id: int | None
     date: date
+    company: str | None
     bank: str | None
     los_no: str | None
     name: str | None
     address: str | None
     city: str | None
+    district: str | None
     mobile: str | None
     status: str
     remark: str | None
@@ -122,6 +124,8 @@ class RegenerateMonthRequest(BaseModel):
 class BankPaymentUpdate(BaseModel):
     billing_month: str = Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")
     bank: str
+    company: str = ""
+    district: str = ""
     city: str = ""
     received_amount: Decimal = Field(ge=0)
     status: RegisterStatus | None = None
@@ -134,6 +138,8 @@ class BankPaymentResponse(BaseModel):
     id: int
     billing_month: date
     bank: str
+    company: str
+    district: str
     city: str
     billed_amount: Decimal
     received_amount: Decimal

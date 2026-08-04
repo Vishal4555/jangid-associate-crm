@@ -9,6 +9,10 @@ export interface Case {
   closed_date: string;
 
   bank: string;
+  company_id: number | null;
+  company: string;
+  district_id: number | null;
+  district: string;
   branch: string;
   loan_type: string;
 
@@ -43,6 +47,10 @@ export interface CaseFormPayload {
   los_no?: string | null;
   receive_date?: string;
   bank?: string;
+  company_id?: number | null;
+  company?: string;
+  district_id?: number | null;
+  district?: string;
   branch?: string;
   loan_type?: string;
   applicant?: string;

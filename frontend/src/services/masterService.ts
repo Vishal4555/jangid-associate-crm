@@ -39,6 +39,9 @@ function routeFor(master: MasterKey) {
       return "/masters/loan-types";
     case "product-types":
       return "/masters/product-types";
+    case "companies": return "/masters/companies";
+    case "company-banks": return "/masters/company-banks";
+    case "districts": return "/masters/districts";
     default:
       return "/masters/banks";
   }
@@ -51,6 +54,7 @@ function buildParams(params: MasterListParams = {}) {
     ...(typeof params.pageSize === "number" ? { page_size: params.pageSize } : {}),
     ...(params.all ? { all: true } : {}),
     ...(typeof params.bankId === "number" ? { bank_id: params.bankId } : {}),
+    ...(typeof params.companyId === "number" ? { company_id: params.companyId } : {}),
     ...(params.statusFilter ? { status_filter: params.statusFilter } : {}),
     ...(params.activeOnly ? { active_only: true } : {}),
   };

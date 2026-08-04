@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.security import require_roles
 from app.db.database import get_db
 from app.models.user import User
+from app.models.master import Bank, Company, CompanyBank, District
 from app.schemas.master import (
     BankCreate,
     BankPageResponse,
@@ -26,6 +29,9 @@ from app.schemas.master import (
     ProductTypePageResponse,
     ProductTypeResponse,
     ProductTypeUpdate,
+    CompanyCreate, CompanyUpdate, CompanyResponse, CompanyPageResponse,
+    CompanyBankCreate, CompanyBankUpdate, CompanyBankResponse, CompanyBankPageResponse,
+    DistrictCreate, DistrictUpdate, DistrictResponse, DistrictPageResponse,
 )
 from app.services.masters_service import (
     create_bank,
@@ -228,3 +234,87 @@ def edit_product_type(product_type_id: int, product_type: ProductTypeUpdate, db:
 def remove_product_type(product_type_id: int, db: Session = Depends(get_db), _: User = write_access):
     delete_product_type(db, product_type_id)
     return {"message": "Product type deleted successfully"}
+
+
+company_write_access = Depends(require_roles("Admin", "Manager"))
+
+
+def _page(items):
+    return {"items": items, "total": len(items), "page": 1, "page_size": len(items) or 1, "total_pages": 1}
+
+
+@router.get("/companies", response_model=CompanyPageResponse)
+def get_companies(search: str | None = None, active_only: bool = False, db: Session = Depends(get_db), _: User = read_access):
+    query = db.query(Company).order_by(Company.name)
+    if search: query = query.filter(Company.name.ilike(f"%{search.strip()}%"))
+    if active_only: query = query.filter(Company.is_active.is_(True))
+    return _page(query.all())
+
+
+@router.post("/companies", response_model=CompanyResponse, status_code=status.HTTP_201_CREATED)
+def add_company(payload: CompanyCreate, db: Session = Depends(get_db), _: User = company_write_access):
+    if db.query(Company).filter(func.lower(func.trim(Company.name)) == payload.name.strip().casefold()).first():
+        raise HTTPException(status_code=409, detail="Company name already exists")
+    row = Company(**payload.model_dump()); db.add(row)
+    try: db.commit(); db.refresh(row)
+    except IntegrityError as exc: db.rollback(); raise HTTPException(status_code=409, detail="Company name or code already exists") from exc
+    return row
+
+
+@router.put("/companies/{item_id}", response_model=CompanyResponse)
+def edit_company(item_id: int, payload: CompanyUpdate, db: Session = Depends(get_db), _: User = company_write_access):
+    row = db.get(Company, item_id)
+    if not row: raise HTTPException(status_code=404, detail="Company not found")
+    values = payload.model_dump(exclude_unset=True)
+    if "name" in values and db.query(Company).filter(Company.id != item_id, func.lower(func.trim(Company.name)) == values["name"].strip().casefold()).first():
+        raise HTTPException(status_code=409, detail="Company name already exists")
+    for key, value in values.items(): setattr(row, key, value)
+    db.commit(); db.refresh(row); return row
+
+
+@router.get("/company-banks", response_model=CompanyBankPageResponse)
+def get_company_banks(company_id: int | None = None, active_only: bool = False, db: Session = Depends(get_db), _: User = read_access):
+    query = db.query(CompanyBank).options(joinedload(CompanyBank.company), joinedload(CompanyBank.bank)).order_by(CompanyBank.id)
+    if company_id: query = query.filter(CompanyBank.company_id == company_id)
+    if active_only: query = query.filter(CompanyBank.is_active.is_(True))
+    return _page(query.all())
+
+
+@router.post("/company-banks", response_model=CompanyBankResponse, status_code=status.HTTP_201_CREATED)
+def add_company_bank(payload: CompanyBankCreate, db: Session = Depends(get_db), _: User = company_write_access):
+    if not db.get(Company, payload.company_id) or not db.get(Bank, payload.bank_id): raise HTTPException(status_code=422, detail="Company or bank not found")
+    row = CompanyBank(**payload.model_dump()); db.add(row)
+    try: db.commit(); db.refresh(row)
+    except IntegrityError as exc: db.rollback(); raise HTTPException(status_code=409, detail="Bank is already mapped to this company") from exc
+    return db.query(CompanyBank).options(joinedload(CompanyBank.company), joinedload(CompanyBank.bank)).get(row.id)
+
+
+@router.put("/company-banks/{item_id}", response_model=CompanyBankResponse)
+def edit_company_bank(item_id: int, payload: CompanyBankUpdate, db: Session = Depends(get_db), _: User = company_write_access):
+    row = db.get(CompanyBank, item_id)
+    if not row: raise HTTPException(status_code=404, detail="Company-bank mapping not found")
+    for key, value in payload.model_dump(exclude_unset=True).items(): setattr(row, key, value)
+    db.commit(); db.refresh(row); return db.query(CompanyBank).options(joinedload(CompanyBank.company), joinedload(CompanyBank.bank)).get(row.id)
+
+
+@router.get("/districts", response_model=DistrictPageResponse)
+def get_districts(active_only: bool = False, db: Session = Depends(get_db), _: User = read_access):
+    query = db.query(District).filter(District.state == "Rajasthan").order_by(District.name)
+    if active_only: query = query.filter(District.is_active.is_(True))
+    return _page(query.all())
+
+
+@router.post("/districts", response_model=DistrictResponse, status_code=status.HTTP_201_CREATED)
+def add_district(payload: DistrictCreate, db: Session = Depends(get_db), _: User = company_write_access):
+    row = District(**payload.model_dump()); db.add(row)
+    try: db.commit(); db.refresh(row)
+    except IntegrityError as exc: db.rollback(); raise HTTPException(status_code=409, detail="District already exists") from exc
+    return row
+
+
+@router.put("/districts/{item_id}", response_model=DistrictResponse)
+def edit_district(item_id: int, payload: DistrictUpdate, db: Session = Depends(get_db), _: User = company_write_access):
+    row = db.get(District, item_id)
+    if not row: raise HTTPException(status_code=404, detail="District not found")
+    for key, value in payload.model_dump(exclude_unset=True).items(): setattr(row, key, value)
+    db.commit(); db.refresh(row); return row

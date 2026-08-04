@@ -8,6 +8,10 @@ export const caseSchema = z.object({
   receive_date: z.string().optional(),
 
   bank: z.string().optional(),
+  company_id: z.number().int().positive().optional(),
+  company: z.string().optional(),
+  district_id: z.number().int().positive().optional(),
+  district: z.string().optional(),
 
   branch: z.string().optional(),
 

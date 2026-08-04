@@ -28,6 +28,7 @@ type SidebarPath =
   | "/search"
   | "/reports"
   | "/masters"
+  | "/masters/companies"
   | "/users"
   | "/settings";
 
@@ -49,6 +50,7 @@ const menus: MenuItem[] = [
   { icon: Search, name: "Search", path: "/search", roles: ["Admin", "Manager", "Executive"] },
   { icon: BarChart3, name: "Reports", path: "/reports", roles: ["Admin", "Manager"] },
   { icon: Layers3, name: "Masters", path: "/masters", roles: ["Admin", "Manager"] },
+  { icon: Layers3, name: "Company & District Masters", path: "/masters/companies", roles: ["Admin", "Manager"] },
   { icon: Users, name: "Users", path: "/users", roles: ["Admin"] },
   { icon: Settings, name: "Settings", path: "/settings", roles: ["Admin", "Manager"] },
 ];

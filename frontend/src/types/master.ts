@@ -3,7 +3,10 @@ export type MasterKey =
   | "branches"
   | "executives"
   | "loan-types"
-  | "product-types";
+  | "product-types"
+  | "companies"
+  | "company-banks"
+  | "districts";
 
 export interface PaginationMeta {
   total: number;
@@ -60,7 +63,11 @@ export interface ProductType {
   updated_at: string;
 }
 
-export type MasterRecord = Bank | Branch | Executive | LoanType | ProductType;
+export interface Company { id:number; name:string; code:string|null; source_type:"WhatsApp"|"Email"|"Both"|"Other"; contact_person:string|null; email:string|null; mobile:string|null; is_active:boolean; remarks:string|null; created_at:string; updated_at:string }
+export interface CompanyBank { id:number; company_id:number; company_name:string; bank_id:number; bank_name:string; is_active:boolean; remarks:string|null; created_at:string; updated_at:string }
+export interface District { id:number; name:string; state:string; is_active:boolean }
+
+export type MasterRecord = Bank | Branch | Executive | LoanType | ProductType | Company | CompanyBank | District;
 
 export type MasterRecordMap = {
   banks: Bank;
@@ -68,6 +75,9 @@ export type MasterRecordMap = {
   executives: Executive;
   "loan-types": LoanType;
   "product-types": ProductType;
+  companies: Company;
+  "company-banks": CompanyBank;
+  districts: District;
 };
 
 export type MasterPageResponseMap = {
@@ -76,6 +86,9 @@ export type MasterPageResponseMap = {
   executives: PageResponse<Executive>;
   "loan-types": PageResponse<LoanType>;
   "product-types": PageResponse<ProductType>;
+  companies: PageResponse<Company>;
+  "company-banks": PageResponse<CompanyBank>;
+  districts: PageResponse<District>;
 };
 
 export type MasterPayloadMap = {
@@ -89,6 +102,9 @@ export type MasterPayloadMap = {
   };
   "loan-types": { name: string; code?: string };
   "product-types": { name: string; code?: string };
+  companies: { name:string; code?:string; source_type:"WhatsApp"|"Email"|"Both"|"Other"; contact_person?:string; email?:string; mobile?:string; is_active:boolean; remarks?:string };
+  "company-banks": { company_id:number; bank_id:number; is_active:boolean; remarks?:string };
+  districts: { name:string; state:string; is_active:boolean };
 };
 
 export type MasterFormValuesMap = {
@@ -102,6 +118,9 @@ export type MasterFormValuesMap = {
   };
   "loan-types": { name: string; code: string };
   "product-types": { name: string; code: string };
+  companies: { name:string; code:string; source_type:"WhatsApp"|"Email"|"Both"|"Other"; contact_person:string; email:string; mobile:string; is_active:boolean; remarks:string };
+  "company-banks": { company_id:string; bank_id:string; is_active:boolean; remarks:string };
+  districts: { name:string; state:string; is_active:boolean };
 };
 
 export interface MasterListParams {
@@ -110,6 +129,7 @@ export interface MasterListParams {
   pageSize?: number;
   all?: boolean;
   bankId?: number;
+  companyId?: number;
   statusFilter?: "Active" | "Inactive";
   activeOnly?: boolean;
 }

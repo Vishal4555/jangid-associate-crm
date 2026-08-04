@@ -25,6 +25,7 @@ from app.core.security import get_current_active_user
 from app.db.database import Base, engine, get_db
 from app.models.case import Case
 from app.models.case_activity import CaseActivity
+from app.models.master import Company, CompanyBank, District, Bank
 from app.models.user import User
 from app.schemas.case import (
     CaseActivityResponse,
@@ -42,6 +43,8 @@ ACTIVITY_TYPES_BY_FIELD = {
     "status": "STATUS_CHANGED",
     "executive": "EXECUTIVE_CHANGED",
     "bank": "BANK_CHANGED",
+    "company": "COMPANY_CHANGED",
+    "district": "DISTRICT_CHANGED",
     "city": "CITY_CHANGED",
     "address": "ADDRESS_CHANGED",
     "applicant": "APPLICANT_CHANGED",
@@ -55,6 +58,8 @@ INITIAL_ACTIVITY_FIELDS = (
     "status",
     "executive",
     "bank",
+    "company",
+    "district",
     "city",
     "applicant",
     "mobile",
@@ -93,6 +98,23 @@ def _case_activity(
         performed_by_user_id=current_user.id,
         performed_by_name=current_user.full_name,
     )
+
+
+def _validate_case_dimensions(db: Session, data: dict) -> None:
+    company_id, district_id = data.get("company_id"), data.get("district_id")
+    if company_id is not None:
+        company = db.get(Company, company_id)
+        if company is None or not company.is_active: raise HTTPException(status_code=422, detail="Active company not found")
+        data["company"] = company.name
+    if district_id is not None:
+        district = db.get(District, district_id)
+        if district is None or not district.is_active: raise HTTPException(status_code=422, detail="Active Rajasthan district not found")
+        data["district"] = district.name
+    if company_id is not None and data.get("bank"):
+        bank = db.scalar(select(Bank).where(Bank.name == data["bank"]))
+        if bank is None or db.scalar(select(CompanyBank.id).where(CompanyBank.company_id == company_id,
+            CompanyBank.bank_id == bank.id, CompanyBank.is_active.is_(True))) is None:
+            raise HTTPException(status_code=422, detail="Bank is not mapped to the selected company")
 
 app = FastAPI(
     title="JANGID ASSOCIATE CRM",
@@ -271,6 +293,7 @@ def create_case(
     current_user: User = Depends(get_current_active_user),
 ):
     case_data = case.model_dump()
+    _validate_case_dimensions(db, case_data)
     if case_data.get("status") in {"Positive", "Negative"}:
         case_data["closed_date"] = date.today()
     new_case = Case(**case_data)
@@ -322,6 +345,12 @@ def update_case(
         )
 
     update_data = case_update.model_dump(exclude_unset=True)
+    dimension_data = {"company_id": update_data.get("company_id", existing_case.company_id),
+        "district_id": update_data.get("district_id", existing_case.district_id),
+        "bank": update_data.get("bank", existing_case.bank)}
+    _validate_case_dimensions(db, dimension_data)
+    if "company_id" in update_data: update_data["company"] = dimension_data.get("company")
+    if "district_id" in update_data: update_data["district"] = dimension_data.get("district")
     updated_status = update_data.get("status", existing_case.status)
     if updated_status in {"Positive", "Negative"}:
         if existing_case.closed_date is not None:

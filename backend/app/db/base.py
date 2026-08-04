@@ -3,6 +3,9 @@ from app.db.database import Base
 from app.models.master import (
     Bank,
     Branch,
+    Company,
+    CompanyBank,
+    District,
     Executive,
     LoanType,
     ProductType,

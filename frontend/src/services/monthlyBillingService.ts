@@ -8,7 +8,7 @@ function errorMessage(error: unknown) {
 export async function finalizeMonth(month:string, notes?:string) { return (await API.post<MonthStatus>("/billing/month-finalize",{month,notes})).data; }
 export async function reopenMonth(month:string, reason:string) { return (await API.post<MonthStatus>("/billing/month-reopen",{month,reason})).data; }
 export async function regenerateMonth(month:string) { return (await API.post<MonthStatus>("/billing/month-regenerate",{month,confirm:true})).data; }
-export async function getBillingDashboard(month:string) { return (await API.get<BillingDashboard>("/billing/dashboard",{params:{month}})).data; }
+export async function getBillingDashboard(month:string, filters:Record<string,string>={}) { return (await API.get<BillingDashboard>("/billing/dashboard",{params:{month,...filters}})).data; }
 export async function getMonthlyBilling(month: string, filters: Record<string, string> = {}) {
   try { return (await API.get<MonthlyBillingResponse>("/billing/monthly", { params: { month, ...filters } })).data; }
   catch (error) { throw errorMessage(error); }

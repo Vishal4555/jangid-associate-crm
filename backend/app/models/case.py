@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Date, DateTime, Integer, String, Text
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, Text
 
 from app.db.database import Base
 
@@ -17,6 +17,10 @@ class Case(Base):
     closed_date = Column(Date, nullable=True)
 
     bank = Column(String(200))
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="SET NULL"), nullable=True, index=True)
+    company = Column(String(200), nullable=True)
+    district_id = Column(Integer, ForeignKey("districts.id", ondelete="SET NULL"), nullable=True, index=True)
+    district = Column(String(100), nullable=True)
 
     branch = Column(String(200))
 

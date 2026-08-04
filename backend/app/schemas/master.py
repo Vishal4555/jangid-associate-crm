@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 ExecutiveStatus = Literal["Active", "Inactive"]
+SourceType = Literal["WhatsApp", "Email", "Both", "Other"]
 
 
 class PaginationMeta(BaseModel):
@@ -149,3 +150,82 @@ class ProductTypeResponse(ProductTypeBase):
 
 class ProductTypePageResponse(PaginationMeta):
     items: list[ProductTypeResponse]
+
+
+class CompanyBase(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    code: Optional[str] = Field(default=None, max_length=50)
+    source_type: SourceType = "Other"
+    contact_person: Optional[str] = Field(default=None, max_length=200)
+    email: Optional[EmailStr] = None
+    mobile: Optional[str] = Field(default=None, max_length=20)
+    is_active: bool = True
+    remarks: Optional[str] = None
+
+
+class CompanyCreate(CompanyBase): pass
+class CompanyUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    code: Optional[str] = Field(default=None, max_length=50)
+    source_type: Optional[SourceType] = None
+    contact_person: Optional[str] = None
+    email: Optional[EmailStr] = None
+    mobile: Optional[str] = None
+    is_active: Optional[bool] = None
+    remarks: Optional[str] = None
+
+
+class CompanyResponse(CompanyBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CompanyPageResponse(PaginationMeta): items: list[CompanyResponse]
+
+
+class CompanyBankBase(BaseModel):
+    company_id: int
+    bank_id: int
+    is_active: bool = True
+    remarks: Optional[str] = None
+
+
+class CompanyBankCreate(CompanyBankBase): pass
+class CompanyBankUpdate(BaseModel):
+    is_active: Optional[bool] = None
+    remarks: Optional[str] = None
+
+
+class CompanyBankResponse(CompanyBankBase):
+    id: int
+    company_name: str
+    bank_name: str
+    created_at: datetime
+    updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CompanyBankPageResponse(PaginationMeta): items: list[CompanyBankResponse]
+
+
+class DistrictBase(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    state: str = Field(default="Rajasthan", max_length=100)
+    is_active: bool = True
+
+
+class DistrictCreate(DistrictBase): pass
+class DistrictUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    state: Optional[str] = Field(default=None, max_length=100)
+    is_active: Optional[bool] = None
+
+
+class DistrictResponse(DistrictBase):
+    id: int
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DistrictPageResponse(PaginationMeta): items: list[DistrictResponse]

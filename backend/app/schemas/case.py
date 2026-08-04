@@ -8,6 +8,10 @@ class CaseBase(BaseModel):
     los_no: Optional[str] = None
     receive_date: Optional[date] = None
     bank: Optional[str] = None
+    company_id: Optional[int] = None
+    company: Optional[str] = None
+    district_id: Optional[int] = None
+    district: Optional[str] = None
     branch: Optional[str] = None
     loan_type: Optional[str] = None
     applicant: Optional[str] = None

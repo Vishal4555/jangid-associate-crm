@@ -21,6 +21,8 @@ const ACTIVITY_LABELS: Record<string, string> = {
   STATUS_CHANGED: "Status Changed",
   EXECUTIVE_CHANGED: "Executive Changed",
   BANK_CHANGED: "Bank Changed",
+  COMPANY_CHANGED: "Company Changed",
+  DISTRICT_CHANGED: "District Changed",
   CITY_CHANGED: "City Changed",
   ADDRESS_CHANGED: "Address Changed",
   APPLICANT_CHANGED: "Applicant Changed",
@@ -136,7 +138,9 @@ export default function ViewCaseModal({ open, caseItem, onClose }: Props) {
                 <DetailField label="LOS / Application No" value={caseItem.los_no} />
                 <DetailField label="Applicant" value={caseItem.applicant} />
                 <DetailField label="Receive Date" value={caseItem.receive_date} />
+                <DetailField label="Company / Agency" value={caseItem.company} />
                 <DetailField label="Bank" value={caseItem.bank} />
+                <DetailField label="District" value={caseItem.district} />
                 <DetailField label="Branch" value={caseItem.branch} />
                 <DetailField label="Loan Type" value={caseItem.loan_type} />
                 <DetailField label="Product Type" value={caseItem.product_type} />
