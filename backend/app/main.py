@@ -25,7 +25,7 @@ from app.core.security import get_current_active_user
 from app.db.database import Base, engine, get_db
 from app.models.case import Case
 from app.models.case_activity import CaseActivity
-from app.models.master import Company, CompanyBank, District, Bank
+from app.models.master import Company, District, Bank
 from app.models.user import User
 from app.schemas.case import (
     CaseActivityResponse,
@@ -110,11 +110,10 @@ def _validate_case_dimensions(db: Session, data: dict) -> None:
         district = db.get(District, district_id)
         if district is None or not district.is_active: raise HTTPException(status_code=422, detail="Active Rajasthan district not found")
         data["district"] = district.name
-    if company_id is not None and data.get("bank"):
+    if data.get("bank"):
         bank = db.scalar(select(Bank).where(Bank.name == data["bank"]))
-        if bank is None or db.scalar(select(CompanyBank.id).where(CompanyBank.company_id == company_id,
-            CompanyBank.bank_id == bank.id, CompanyBank.is_active.is_(True))) is None:
-            raise HTTPException(status_code=422, detail="Bank is not mapped to the selected company")
+        if bank is None:
+            raise HTTPException(status_code=422, detail="Bank not found")
 
 app = FastAPI(
     title="JANGID ASSOCIATE CRM",

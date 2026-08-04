@@ -13,7 +13,7 @@ from fastapi import HTTPException
 from app.db.database import Base
 import app.db.base  # noqa: F401
 from app.models.case import Case
-from app.models.master import Bank, Company, CompanyBank, District
+from app.models.master import Bank, Company, District
 from app.models.payout_rate import BankPayoutRate
 from app.models.user import User
 from app.schemas.payout_rate import BankRateCreate
@@ -31,8 +31,7 @@ class CompanyDistrictRateTests(unittest.TestCase):
         self.district = District(name="Jaipur")
         self.kota = District(name="Kota")
         self.user = User(full_name="Admin", username="admin", email="admin@test.local", password_hash="x", role="Admin")
-        self.db.add_all([self.company, self.bank, self.district, self.kota, self.user]); self.db.flush()
-        self.db.add(CompanyBank(company_id=self.company.id, bank_id=self.bank.id)); self.db.commit()
+        self.db.add_all([self.company, self.bank, self.district, self.kota, self.user]); self.db.commit()
 
     def case(self, day=date(2026, 8, 10), city="Jaipur", district=None):
         district = district or self.district
@@ -68,6 +67,18 @@ class CompanyDistrictRateTests(unittest.TestCase):
             city="Kota", payout_rate=Decimal("100"), effective_from=date(2026, 8, 1))
         with self.assertRaisesRegex(HTTPException, "City-specific rates are allowed only for Jaipur district"):
             create_rate(self.db, "bank", payload, self.user)
+
+    def test_bank_rate_creation_does_not_require_company_bank_mapping(self):
+        payload = BankRateCreate(company_id=self.company.id, bank_id=self.bank.id, district_id=self.kota.id,
+            payout_rate=Decimal("100"), effective_from=date(2026, 8, 1))
+        created = create_rate(self.db, "bank", payload, self.user)
+        self.assertEqual((created.company_id, created.bank_id, created.district_id),
+            (self.company.id, self.bank.id, self.kota.id))
+
+    def test_monthly_rate_matches_without_company_bank_mapping(self):
+        row = self.rate(district=self.kota)
+        match = resolve_monthly_bank_rate(self.db, self.case(city="Kota", district=self.kota))
+        self.assertEqual((match.status, match.rate_id), ("MATCHED", row.id))
 
     def test_city_matching_is_trimmed_and_case_insensitive(self):
         row = self.rate(city="  ChOmU  ")

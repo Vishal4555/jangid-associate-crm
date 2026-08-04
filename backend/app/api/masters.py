@@ -273,7 +273,7 @@ def edit_company(item_id: int, payload: CompanyUpdate, db: Session = Depends(get
     db.commit(); db.refresh(row); return row
 
 
-@router.get("/company-banks", response_model=CompanyBankPageResponse)
+@router.get("/company-banks", response_model=CompanyBankPageResponse, deprecated=True)
 def get_company_banks(company_id: int | None = None, active_only: bool = False, db: Session = Depends(get_db), _: User = read_access):
     query = db.query(CompanyBank).options(joinedload(CompanyBank.company), joinedload(CompanyBank.bank)).order_by(CompanyBank.id)
     if company_id: query = query.filter(CompanyBank.company_id == company_id)
@@ -281,7 +281,7 @@ def get_company_banks(company_id: int | None = None, active_only: bool = False, 
     return _page(query.all())
 
 
-@router.post("/company-banks", response_model=CompanyBankResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/company-banks", response_model=CompanyBankResponse, status_code=status.HTTP_201_CREATED, deprecated=True)
 def add_company_bank(payload: CompanyBankCreate, db: Session = Depends(get_db), _: User = company_write_access):
     if not db.get(Company, payload.company_id) or not db.get(Bank, payload.bank_id): raise HTTPException(status_code=422, detail="Company or bank not found")
     row = CompanyBank(**payload.model_dump()); db.add(row)
@@ -290,7 +290,7 @@ def add_company_bank(payload: CompanyBankCreate, db: Session = Depends(get_db), 
     return db.query(CompanyBank).options(joinedload(CompanyBank.company), joinedload(CompanyBank.bank)).get(row.id)
 
 
-@router.post("/company-banks/bulk", response_model=CompanyBankBulkResponse)
+@router.post("/company-banks/bulk", response_model=CompanyBankBulkResponse, deprecated=True)
 def add_company_banks_bulk(payload: CompanyBankBulkCreate, db: Session = Depends(get_db), _: User = company_write_access):
     company = db.get(Company, payload.company_id)
     if company is None: raise HTTPException(status_code=422, detail="Company not found")
@@ -329,7 +329,7 @@ def add_company_banks_bulk(payload: CompanyBankBulkCreate, db: Session = Depends
         skipped_count=skipped_count, items=items)
 
 
-@router.put("/company-banks/{item_id}", response_model=CompanyBankResponse)
+@router.put("/company-banks/{item_id}", response_model=CompanyBankResponse, deprecated=True)
 def edit_company_bank(item_id: int, payload: CompanyBankUpdate, db: Session = Depends(get_db), _: User = company_write_access):
     row = db.get(CompanyBank, item_id)
     if not row: raise HTTPException(status_code=404, detail="Company-bank mapping not found")

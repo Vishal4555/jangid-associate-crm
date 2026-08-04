@@ -9,7 +9,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.case import Case
-from app.models.master import Bank, Company, CompanyBank, District, Executive, LoanType, ProductType
+from app.models.master import Bank, Company, District, Executive, LoanType, ProductType
 from app.models.payout_rate import BankPayoutRate, ExecutivePayoutRate
 from app.models.user import User
 from app.schemas.payout_rate import (
@@ -47,19 +47,19 @@ def _overlap(model, data: dict, exclude_id: int | None = None):
 
 
 def _ensure_refs(db: Session, data: dict, executive: bool = False) -> None:
-    if db.get(Bank, data.get("bank_id")) is None and (not executive or data.get("bank_id") is not None):
+    bank = db.get(Bank, data.get("bank_id"))
+    if bank is None and (not executive or data.get("bank_id") is not None):
         raise HTTPException(status_code=422, detail="Bank does not exist")
     if executive and db.get(Executive, data["executive_id"]) is None:
         raise HTTPException(status_code=422, detail="Executive does not exist")
     structured_bank_rate = not executive and (data.get("company_id") is not None or data.get("district_id") is not None)
-    if structured_bank_rate and (data.get("company_id") is None or db.get(Company, data["company_id"]) is None):
-        raise HTTPException(status_code=422, detail="Company does not exist")
-    if structured_bank_rate and (data.get("district_id") is None or db.get(District, data["district_id"]) is None):
-        raise HTTPException(status_code=422, detail="District does not exist")
-    if structured_bank_rate and db.scalar(select(CompanyBank.id).where(CompanyBank.company_id == data["company_id"], CompanyBank.bank_id == data["bank_id"], CompanyBank.is_active.is_(True))) is None:
-        raise HTTPException(status_code=422, detail="Bank is not actively mapped to this company")
+    company = db.get(Company, data.get("company_id")) if structured_bank_rate else None
+    district = db.get(District, data.get("district_id")) if structured_bank_rate else None
+    if structured_bank_rate and (company is None or not company.is_active):
+        raise HTTPException(status_code=422, detail="Active company does not exist")
+    if structured_bank_rate and (district is None or not district.is_active):
+        raise HTTPException(status_code=422, detail="Active district does not exist")
     if structured_bank_rate:
-        district = db.get(District, data["district_id"])
         if normalized(district.name) != "jaipur" and normalized(data.get("city")) is not None:
             raise HTTPException(status_code=422, detail="City-specific rates are allowed only for Jaipur district.")
 
@@ -212,8 +212,8 @@ def import_rates(db: Session, kind: str, request: RateImportRequest, user: User)
     executive_names = {normalized(x.full_name): x.id for x in db.query(Executive).all()}
     loan_names = {normalized(x.name) for x in db.query(LoanType).all()}
     product_names = {normalized(x.name) for x in db.query(ProductType).all()}
-    company_names = {normalized(x.name): x.id for x in db.query(Company).all()}
-    district_names = {normalized(x.name): x.id for x in db.query(District).all()}
+    company_names = {normalized(x.name): x.id for x in db.query(Company).filter(Company.is_active.is_(True)).all()}
+    district_names = {normalized(x.name): x.id for x in db.query(District).filter(District.is_active.is_(True)).all()}
     results, payloads = [], []
     seen = set()
     for row in request.rows:
@@ -226,9 +226,6 @@ def import_rates(db: Session, kind: str, request: RateImportRequest, user: User)
         if kind == "executive" and not executive_id: errors.append("Executive not found")
         if kind == "bank" and not company_id: errors.append("Company not found")
         if kind == "bank" and not district_id: errors.append("District not found")
-        if kind == "bank" and company_id and bank_id and db.scalar(select(CompanyBank.id).where(
-            CompanyBank.company_id == company_id, CompanyBank.bank_id == bank_id,
-            CompanyBank.is_active.is_(True))) is None: errors.append("Bank is not actively mapped to this company")
         if kind == "bank" and district_id and normalized(row.district) != "jaipur" and normalized(row.city):
             errors.append("City-specific rates are allowed only for Jaipur district.")
         if row.location and row.location.strip(): errors.append("Location is unavailable because cases have no structured location field")
