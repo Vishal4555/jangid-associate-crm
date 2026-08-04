@@ -9,7 +9,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.case import Case
-from app.models.master import Bank, Executive, LoanType, ProductType
+from app.models.master import Bank, Company, CompanyBank, District, Executive, LoanType, ProductType
 from app.models.payout_rate import BankPayoutRate, ExecutivePayoutRate
 from app.models.user import User
 from app.schemas.payout_rate import (
@@ -33,6 +33,8 @@ def _overlap(model, data: dict, exclude_id: int | None = None):
         or_(model.effective_to.is_(None), model.effective_to >= data["effective_from"]),
     )
     dimensions = ["bank_id", "city", "loan_type", "product_type"]
+    if model is BankPayoutRate and (data.get("company_id") is not None or data.get("district_id") is not None):
+        dimensions = ["company_id", "bank_id", "district_id", "city"]
     if model is ExecutivePayoutRate:
         dimensions.insert(0, "executive_id")
     for field in dimensions:
@@ -49,15 +51,31 @@ def _ensure_refs(db: Session, data: dict, executive: bool = False) -> None:
         raise HTTPException(status_code=422, detail="Bank does not exist")
     if executive and db.get(Executive, data["executive_id"]) is None:
         raise HTTPException(status_code=422, detail="Executive does not exist")
+    structured_bank_rate = not executive and (data.get("company_id") is not None or data.get("district_id") is not None)
+    if structured_bank_rate and (data.get("company_id") is None or db.get(Company, data["company_id"]) is None):
+        raise HTTPException(status_code=422, detail="Company does not exist")
+    if structured_bank_rate and (data.get("district_id") is None or db.get(District, data["district_id"]) is None):
+        raise HTTPException(status_code=422, detail="District does not exist")
+    if structured_bank_rate and db.scalar(select(CompanyBank.id).where(CompanyBank.company_id == data["company_id"], CompanyBank.bank_id == data["bank_id"], CompanyBank.is_active.is_(True))) is None:
+        raise HTTPException(status_code=422, detail="Bank is not actively mapped to this company")
+    if structured_bank_rate:
+        district = db.get(District, data["district_id"])
+        if normalized(district.name) != "jaipur" and normalized(data.get("city")) is not None:
+            raise HTTPException(status_code=422, detail="City-specific rates are allowed only for Jaipur district.")
 
 
 def _ensure_no_overlap(db: Session, model, data: dict, exclude_id: int | None = None) -> None:
-    if db.scalar(_overlap(model, data, exclude_id)) is not None:
+    if not data.get("is_active", True):
+        return
+    query = _overlap(model, data, exclude_id).where(model.is_active.is_(True))
+    if db.scalar(query) is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Effective dates overlap an existing rate with identical matching dimensions")
 
 
 def _bank_response(rate: BankPayoutRate) -> BankRateResponse:
-    return BankRateResponse.model_validate({**rate.__dict__, "bank_name": rate.bank.name})
+    return BankRateResponse.model_validate({**rate.__dict__, "bank_name": rate.bank.name,
+        "company_name": rate.company.name if rate.company else None,
+        "district_name": rate.district.name if rate.district else None})
 
 
 def _executive_response(rate: ExecutivePayoutRate) -> ExecutiveRateResponse:
@@ -70,6 +88,7 @@ def _executive_response(rate: ExecutivePayoutRate) -> ExecutiveRateResponse:
 def list_rates(db: Session, kind: str, search: str | None = None, active: bool | None = None):
     model = BankPayoutRate if kind == "bank" else ExecutivePayoutRate
     query = db.query(model).options(joinedload(model.bank))
+    if kind == "bank": query = query.options(joinedload(BankPayoutRate.company), joinedload(BankPayoutRate.district))
     if kind == "executive":
         query = query.options(joinedload(ExecutivePayoutRate.executive))
     if active is not None:
@@ -146,14 +165,32 @@ def resolve_rates(db: Session, case_item: Case) -> tuple[RateMatch, RateMatch]:
     active_date = lambda model: and_(model.is_active.is_(True), model.effective_from <= on_date, or_(model.effective_to.is_(None), model.effective_to >= on_date))
     bank = db.scalar(select(Bank).where(func.lower(func.trim(Bank.name)) == (normalized(case_item.bank) or "")))
     executive = db.scalar(select(Executive).where(func.lower(func.trim(Executive.full_name)) == (normalized(case_item.executive) or "")))
-    bank_rows = [] if bank is None else db.scalars(select(BankPayoutRate).where(BankPayoutRate.bank_id == bank.id, active_date(BankPayoutRate))).all()
+    if bank is None:
+        bank_match = RateMatch("MISSING")
+    elif case_item.company_id is not None and case_item.district_id is not None:
+        bank_rows = db.scalars(select(BankPayoutRate).where(BankPayoutRate.company_id == case_item.company_id,
+            BankPayoutRate.bank_id == bank.id, BankPayoutRate.district_id == case_item.district_id,
+            active_date(BankPayoutRate))).all()
+        district = db.get(District, case_item.district_id)
+        if district and normalized(district.name) == "jaipur":
+            exact = [row for row in bank_rows if normalized(row.city) is not None and normalized(row.city) == normalized(case_item.city)]
+            candidates = exact or [row for row in bank_rows if normalized(row.city) is None]
+        else:
+            candidates = [row for row in bank_rows if normalized(row.city) is None]
+        bank_match = RateMatch("MISSING") if not candidates else RateMatch("AMBIGUOUS") if len(candidates) != 1 else RateMatch("MATCHED", candidates[0].id, candidates[0].payout_rate)
+    elif case_item.company_id is None and case_item.district_id is None:
+        bank_rows = db.scalars(select(BankPayoutRate).where(BankPayoutRate.company_id.is_(None), BankPayoutRate.district_id.is_(None),
+            BankPayoutRate.bank_id == bank.id, active_date(BankPayoutRate))).all()
+        bank_match = _resolve(bank_rows, case_item, ("city", "loan_type", "product_type"))
+    else:
+        bank_match = RateMatch("MISSING")
     executive_rows = [] if executive is None else db.scalars(select(ExecutivePayoutRate).where(
         ExecutivePayoutRate.executive_id == executive.id,
         or_(ExecutivePayoutRate.bank_id.is_(None), ExecutivePayoutRate.bank_id == (bank.id if bank else -1)),
         active_date(ExecutivePayoutRate),
     )).all()
     return (
-        _resolve(bank_rows, case_item, ("city", "loan_type", "product_type")),
+        bank_match,
         _resolve_executive(executive_rows, case_item, bank),
     )
 
@@ -175,38 +212,49 @@ def import_rates(db: Session, kind: str, request: RateImportRequest, user: User)
     executive_names = {normalized(x.full_name): x.id for x in db.query(Executive).all()}
     loan_names = {normalized(x.name) for x in db.query(LoanType).all()}
     product_names = {normalized(x.name) for x in db.query(ProductType).all()}
+    company_names = {normalized(x.name): x.id for x in db.query(Company).all()}
+    district_names = {normalized(x.name): x.id for x in db.query(District).all()}
     results, payloads = [], []
     seen = set()
     for row in request.rows:
         errors = []
         bank_id = bank_names.get(normalized(row.bank))
         executive_id = executive_names.get(normalized(row.executive)) if kind == "executive" else None
+        company_id = company_names.get(normalized(row.company)) if kind == "bank" else None
+        district_id = district_names.get(normalized(row.district)) if kind == "bank" else None
         if not bank_id and (kind == "bank" or row.bank): errors.append("Bank not found")
         if kind == "executive" and not executive_id: errors.append("Executive not found")
+        if kind == "bank" and not company_id: errors.append("Company not found")
+        if kind == "bank" and not district_id: errors.append("District not found")
+        if kind == "bank" and company_id and bank_id and db.scalar(select(CompanyBank.id).where(
+            CompanyBank.company_id == company_id, CompanyBank.bank_id == bank_id,
+            CompanyBank.is_active.is_(True))) is None: errors.append("Bank is not actively mapped to this company")
+        if kind == "bank" and district_id and normalized(row.district) != "jaipur" and normalized(row.city):
+            errors.append("City-specific rates are allowed only for Jaipur district.")
         if row.location and row.location.strip(): errors.append("Location is unavailable because cases have no structured location field")
         if row.loan_type and normalized(row.loan_type) not in loan_names: errors.append("Loan Type not found")
         if row.product_type and normalized(row.product_type) not in product_names: errors.append("Product Type not found")
         if row.payout_rate is None or row.payout_rate < 0: errors.append("Payout Rate must be nonnegative")
         if row.effective_from is None: errors.append("Effective From is required")
         if row.effective_to and row.effective_from and row.effective_to < row.effective_from: errors.append("Effective To precedes Effective From")
-        key = (executive_id, bank_id, normalized(row.city), normalized(row.loan_type), normalized(row.product_type), row.effective_from, row.effective_to)
+        key = (executive_id, company_id, bank_id, district_id, normalized(row.city), normalized(row.loan_type), normalized(row.product_type), row.effective_from, row.effective_to)
         if key in seen: errors.append("Duplicate row in import")
         seen.add(key)
         payload = {
-            "executive_id": executive_id, "bank_id": bank_id, "state": row.state or "Rajasthan",
+            "executive_id": executive_id, "company_id": company_id, "bank_id": bank_id, "district_id": district_id, "state": row.state or "Rajasthan",
             "city": row.city, "loan_type": row.loan_type, "product_type": row.product_type,
             "payout_rate": row.payout_rate, "effective_from": row.effective_from,
             "effective_to": row.effective_to, "is_active": row.active, "remarks": row.remarks,
         }
         if not errors:
             schema = ExecutiveRateCreate if kind == "executive" else BankRateCreate
-            if kind == "executive": payload.pop("state")
+            if kind == "executive": payload.pop("state"); payload.pop("company_id"); payload.pop("district_id")
             else: payload.pop("executive_id")
             try:
                 parsed = schema.model_validate(payload)
                 _ensure_no_overlap(db, ExecutivePayoutRate if kind == "executive" else BankPayoutRate, parsed.model_dump())
                 current = parsed.model_dump()
-                dimension_fields = ("executive_id", "bank_id", "city", "loan_type", "product_type") if kind == "executive" else ("bank_id", "city", "loan_type", "product_type")
+                dimension_fields = ("executive_id", "bank_id", "city", "loan_type", "product_type") if kind == "executive" else ("company_id", "bank_id", "district_id", "city")
                 for _, prior in payloads:
                     previous = prior.model_dump()
                     same_dimensions = all(

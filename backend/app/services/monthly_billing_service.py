@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.case import Case
-from app.models.master import Bank, Executive
+from app.models.master import District, Executive
 from app.models.payout_rate import BankPayoutRate, ExecutivePayoutRate
 from app.models.user import User
 from app.models.billing_month import BillingMonth, ExecutiveMonthlyBillingSnapshot, ExecutiveMonthlyPayment, BankMonthlyBillingSnapshot, BankMonthlyPayment
@@ -59,26 +59,38 @@ def resolve_monthly_executive_rate(db: Session, case_item: Case) -> RateMatch:
 
 
 def resolve_monthly_bank_rate(db: Session, case_item: Case) -> RateMatch:
-    if case_item.receive_date is None or not normalized(case_item.city):
+    if case_item.receive_date is None:
         return RateMatch("MISSING")
+    from app.models.master import Bank
     bank = _master_by_name(db, Bank, Bank.name, case_item.bank)
-    if bank is None:
+    if bank is None: return RateMatch("MISSING")
+    if case_item.company_id is not None and case_item.district_id is not None:
+        rows = db.scalars(select(BankPayoutRate).where(BankPayoutRate.company_id == case_item.company_id,
+            BankPayoutRate.bank_id == bank.id, BankPayoutRate.district_id == case_item.district_id,
+            *_effective(BankPayoutRate, case_item.receive_date))).all()
+        district = db.get(District, case_item.district_id)
+        if district and normalized(district.name) == "jaipur":
+            exact = [row for row in rows if normalized(row.city) is not None and normalized(row.city) == normalized(case_item.city)]
+            rows = exact or [row for row in rows if normalized(row.city) is None]
+        else:
+            rows = [row for row in rows if normalized(row.city) is None]
+    elif case_item.company_id is None and case_item.district_id is None and normalized(case_item.city):
+        rows = db.scalars(select(BankPayoutRate).where(BankPayoutRate.company_id.is_(None),
+            BankPayoutRate.district_id.is_(None), BankPayoutRate.bank_id == bank.id,
+            func.lower(func.trim(BankPayoutRate.city)) == normalized(case_item.city),
+            BankPayoutRate.loan_type.is_(None), BankPayoutRate.product_type.is_(None),
+            *_effective(BankPayoutRate, case_item.receive_date))).all()
+    else:
         return RateMatch("MISSING")
-    rows = db.scalars(select(BankPayoutRate).where(
-        BankPayoutRate.bank_id == bank.id,
-        func.lower(func.trim(BankPayoutRate.city)) == normalized(case_item.city),
-        BankPayoutRate.loan_type.is_(None), BankPayoutRate.product_type.is_(None),
-        *_effective(BankPayoutRate, case_item.receive_date),
-    )).all()
     if not rows: return RateMatch("MISSING")
     if len(rows) > 1: return RateMatch("AMBIGUOUS")
     return RateMatch("MATCHED", rows[0].id, rows[0].payout_rate)
 
 
-def _eligible_cases(db: Session, month: str, executive=None, bank=None, city=None, case_status=None):
+def _eligible_cases(db: Session, month: str, executive=None, bank=None, city=None, case_status=None, company=None, district=None):
     start, end = month_bounds(month)
     query = select(Case).where(Case.receive_date.between(start, end), func.lower(func.trim(Case.status)).in_(("positive", "negative")))
-    for column, value in ((Case.executive, executive), (Case.bank, bank), (Case.city, city), (Case.status, case_status)):
+    for column, value in ((Case.executive, executive), (Case.company, company), (Case.bank, bank), (Case.district, district), (Case.city, city), (Case.status, case_status)):
         if value:
             query = query.where(func.lower(func.trim(column)) == normalized(value))
     return db.scalars(query.order_by(Case.receive_date, Case.id)).all()
@@ -113,8 +125,8 @@ def _snapshot_report(db: Session, month: str, period: BillingMonth) -> MonthlyBi
         payment_date=payments[x.executive_id].payment_date if x.executive_id in payments else None,
         payment_reference=payments[x.executive_id].payment_reference if x.executive_id in payments else None,
         remarks=x.remarks, snapshot_revision=period.revision_number) for x in executives]
-    bank_rows = [BankMonthlyRow(case_id=x.case_id, date=x.date, bank=x.bank, los_no=x.los_no, name=x.applicant,
-        address=x.address, city=x.city, mobile=x.mobile, status=x.case_status, remark=x.remark, rate=x.rate,
+    bank_rows = [BankMonthlyRow(case_id=x.case_id, date=x.date, company=x.company, bank=x.bank, los_no=x.los_no, name=x.applicant,
+        address=x.address, district=x.district, city=x.city, mobile=x.mobile, status=x.case_status, remark=x.remark, rate=x.rate,
         rate_status=x.rate_status) for x in banks]
     return MonthlyBillingResponse(month=month, executive_billing=executive_rows, bank_billing=bank_rows,
         summary=MonthlySummary(total_cases=len(banks), billable_cases=len(banks), missing_executive_rates=0,
@@ -122,21 +134,23 @@ def _snapshot_report(db: Session, month: str, period: BillingMonth) -> MonthlyBi
         total_bank_billing=sum((x.rate for x in banks), Decimal())), month_status=month_status(db, month))
 
 
-def monthly_billing(db: Session, month: str, executive=None, bank=None, city=None, case_status=None) -> MonthlyBillingResponse:
+def monthly_billing(db: Session, month: str, executive=None, bank=None, city=None, case_status=None, company=None, district=None) -> MonthlyBillingResponse:
     period = _period(db, month)
     if period and period.status == "FINALIZED":
         report = _snapshot_report(db, month, period)
         if executive: report.executive_billing = [x for x in report.executive_billing if normalized(x.executive) == normalized(executive)]
+        if company: report.bank_billing = [x for x in report.bank_billing if normalized(x.company) == normalized(company)]
         if bank: report.bank_billing = [x for x in report.bank_billing if normalized(x.bank) == normalized(bank)]
+        if district: report.bank_billing = [x for x in report.bank_billing if normalized(x.district) == normalized(district)]
         if city: report.bank_billing = [x for x in report.bank_billing if normalized(x.city) == normalized(city)]
         if case_status: report.bank_billing = [x for x in report.bank_billing if normalized(x.status) == normalized(case_status)]
         return report
     start, end = month_bounds(month)
     total_query = select(func.count(Case.id)).where(Case.receive_date.between(start, end))
-    for column, value in ((Case.executive, executive), (Case.bank, bank), (Case.city, city), (Case.status, case_status)):
+    for column, value in ((Case.executive, executive), (Case.company, company), (Case.bank, bank), (Case.district, district), (Case.city, city), (Case.status, case_status)):
         if value:
             total_query = total_query.where(func.lower(func.trim(column)) == normalized(value))
-    cases = _eligible_cases(db, month, executive, bank, city, case_status)
+    cases = _eligible_cases(db, month, executive, bank, city, case_status, company, district)
     registers = {normalized(row.executive.full_name): row for row in db.scalars(select(ExecutiveMonthlyPayment).options(joinedload(ExecutiveMonthlyPayment.executive)).where(ExecutiveMonthlyPayment.billing_month == start)).all()}
     groups = defaultdict(list)
     bank_rows, missing_bank, ambiguous = [], 0, 0
@@ -145,8 +159,8 @@ def monthly_billing(db: Session, month: str, executive=None, bank=None, city=Non
         match = resolve_monthly_bank_rate(db, item)
         missing_bank += match.status == "MISSING"
         ambiguous += match.status == "AMBIGUOUS"
-        bank_rows.append(BankMonthlyRow(case_id=item.id, date=item.receive_date, bank=item.bank, los_no=item.los_no,
-            name=item.applicant, address=item.address, city=item.city, mobile=item.mobile, status=item.status,
+        bank_rows.append(BankMonthlyRow(case_id=item.id, date=item.receive_date, company=item.company, bank=item.bank, los_no=item.los_no,
+            name=item.applicant, address=item.address, district=item.district, city=item.city, mobile=item.mobile, status=item.status,
             remark=item.remarks, rate=match.amount, rate_status=match.status))
 
     executive_rows, missing_executive, total_executive = [], 0, Decimal("0")
@@ -264,22 +278,23 @@ def _replace_snapshots(db: Session, period: BillingMonth, report: MonthlyBilling
             rate_status=row.rate_status, remarks=payment.remarks if payment else None))
     for row in report.bank_billing:
         db.add(BankMonthlyBillingSnapshot(billing_month_id=period.id, case_id=row.case_id, date=row.date,
-            bank=row.bank, los_no=row.los_no, applicant=row.name, address=row.address, city=row.city,
+            company=row.company, bank=row.bank, los_no=row.los_no, applicant=row.name, address=row.address,
+            district=row.district, city=row.city,
             mobile=row.mobile, case_status=row.status, remark=row.remark, rate=row.rate or Decimal(), rate_status=row.rate_status))
     totals = defaultdict(Decimal)
     for row in report.bank_billing:
-        totals[((row.bank or "Unspecified").strip(), (row.city or "").strip())] += row.rate or Decimal()
-    prior = {(x.bank, x.city): x for x in db.scalars(select(BankMonthlyPayment).where(BankMonthlyPayment.billing_month == period.billing_month)).all()}
-    for (bank, city), billed in totals.items():
-        payment = prior.get((bank, city))
+        totals[((row.company or "").strip(), (row.bank or "Unspecified").strip(), (row.district or "").strip())] += row.rate or Decimal()
+    prior = {(x.company, x.bank, x.district): x for x in db.scalars(select(BankMonthlyPayment).where(BankMonthlyPayment.billing_month == period.billing_month)).all()}
+    for (company, bank, district), billed in totals.items():
+        payment = prior.get((company, bank, district))
         if payment:
             if payment.received_amount > billed:
-                raise HTTPException(status_code=409, detail=f"Regeneration would overpay bank {bank} / {city}")
+                raise HTTPException(status_code=409, detail=f"Regeneration would overpay {company} / {bank} / {district}")
             payment.billed_amount = billed; payment.balance_amount = billed-payment.received_amount
             if payment.status != "Cancelled": payment.status = _derived_status(payment.received_amount, billed)
             payment.is_finalized = True
         else:
-            db.add(BankMonthlyPayment(billing_month=period.billing_month, bank=bank, city=city,
+            db.add(BankMonthlyPayment(billing_month=period.billing_month, company=company, bank=bank, district=district, city="",
                 billed_amount=billed, received_amount=0, balance_amount=billed, status="Pending", is_finalized=True))
 
 
@@ -319,7 +334,8 @@ def reopen_month(db: Session, month: str, reason: str, user: User) -> MonthStatu
 def save_bank_payment(db: Session, payload: BankPaymentUpdate, user: User) -> BankPaymentResponse:
     start, _ = month_bounds(payload.billing_month)
     row = db.scalar(select(BankMonthlyPayment).where(BankMonthlyPayment.billing_month == start,
-        BankMonthlyPayment.bank == payload.bank.strip(), BankMonthlyPayment.city == payload.city.strip()).with_for_update())
+        BankMonthlyPayment.company == payload.company.strip(), BankMonthlyPayment.bank == payload.bank.strip(),
+        BankMonthlyPayment.district == payload.district.strip()).with_for_update())
     if not row: raise HTTPException(status_code=404, detail="Bank payment register row not found; finalize the month first")
     if payload.received_amount > row.billed_amount: raise HTTPException(status_code=422, detail="received_amount cannot exceed billed_amount")
     cancelled = payload.status == "Cancelled"
@@ -333,10 +349,13 @@ def save_bank_payment(db: Session, payload: BankPaymentUpdate, user: User) -> Ba
     db.commit(); db.refresh(row); return BankPaymentResponse.model_validate(row)
 
 
-def billing_dashboard(db: Session, month: str) -> BillingDashboardResponse:
-    report = monthly_billing(db, month)
+def billing_dashboard(db: Session, month: str, company: str | None = None, bank: str | None = None, district: str | None = None) -> BillingDashboardResponse:
+    report = monthly_billing(db, month, bank=bank, company=company, district=district)
     start, _ = month_bounds(month)
-    banks = db.scalars(select(BankMonthlyPayment).where(BankMonthlyPayment.billing_month == start).order_by(BankMonthlyPayment.bank, BankMonthlyPayment.city)).all()
+    query = select(BankMonthlyPayment).where(BankMonthlyPayment.billing_month == start)
+    for column, value in ((BankMonthlyPayment.company, company), (BankMonthlyPayment.bank, bank), (BankMonthlyPayment.district, district)):
+        if value: query = query.where(func.lower(func.trim(column)) == normalized(value))
+    banks = db.scalars(query.order_by(BankMonthlyPayment.company, BankMonthlyPayment.bank, BankMonthlyPayment.district)).all()
     bank_rows = [BankPaymentResponse.model_validate(x) for x in banks]
     bank_total = report.summary.total_bank_billing
     bank_received = sum((x.received_amount for x in banks if x.status != "Cancelled"), Decimal())

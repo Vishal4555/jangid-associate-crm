@@ -36,6 +36,8 @@ class RateBase(BaseModel):
 
 class BankRateCreate(RateBase):
     bank_id: int
+    company_id: int | None = None
+    district_id: int | None = None
     state: str | None = "Rajasthan"
 
     @field_validator("state", mode="before")
@@ -69,6 +71,10 @@ class RateResponseBase(RateBase):
 class BankRateResponse(RateResponseBase):
     bank_id: int
     bank_name: str
+    company_id: int | None
+    company_name: str | None
+    district_id: int | None
+    district_name: str | None
     state: str | None
 
 
@@ -83,6 +89,8 @@ class RateImportRow(BaseModel):
     row_number: int
     bank: str | None = None
     executive: str | None = None
+    company: str | None = None
+    district: str | None = None
     state: str | None = None
     city: str | None = None
     location: str | None = None
