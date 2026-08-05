@@ -38,6 +38,7 @@ class BankRateCreate(RateBase):
     bank_id: int | None = None
     company_id: int | None = None
     district_id: int | None = None
+    district_scope: Literal["RAJASTHAN_EXCEPT_JAIPUR", "JAIPUR_ONLY", "SELECTED_DISTRICTS"] | None = None
     state: str | None = "Rajasthan"
 
     @field_validator("state", mode="before")
@@ -52,12 +53,19 @@ class BankRateBulkCreate(RateBase):
     district_ids: list[int] | None = Field(default=None, max_length=10000)
     # Backwards-compatible input accepted from the previous single-district UI.
     district_id: int | None = None
+    district_scope: Literal["RAJASTHAN_EXCEPT_JAIPUR", "JAIPUR_ONLY", "SELECTED_DISTRICTS"] = "RAJASTHAN_EXCEPT_JAIPUR"
     state: str | None = "Rajasthan"
 
     @field_validator("state", mode="before")
     @classmethod
     def trim_state(cls, value):
         return clean(value) if isinstance(value, str) or value is None else value
+
+    @model_validator(mode="after")
+    def legacy_district_input_is_selected_scope(self):
+        if self.district_scope == "RAJASTHAN_EXCEPT_JAIPUR" and (self.district_ids or self.district_id is not None):
+            self.district_scope = "SELECTED_DISTRICTS"
+        return self
 
 
 class ExecutiveRateCreate(RateBase):
@@ -89,6 +97,7 @@ class BankRateResponse(RateResponseBase):
     company_name: str | None
     district_id: int | None
     district_name: str | None
+    district_scope: str | None
     state: str | None
 
 

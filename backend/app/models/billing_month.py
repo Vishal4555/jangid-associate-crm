@@ -104,6 +104,7 @@ class BankMonthlyBillingSnapshot(Base):
     remark = Column(Text)
     rate = Column(Numeric(14, 2), nullable=False)
     rate_status = Column(String(20), nullable=False)
+    bank_payout_rate_id = Column(Integer, ForeignKey("bank_payout_rates.id", ondelete="RESTRICT"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 

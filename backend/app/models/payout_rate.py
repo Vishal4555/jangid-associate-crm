@@ -31,6 +31,7 @@ class BankPayoutRate(RateColumns, Base):
     bank_id = Column(Integer, ForeignKey("banks.id", ondelete="RESTRICT"), nullable=True, index=True)
     company_id = Column(Integer, ForeignKey("companies.id", ondelete="RESTRICT"), nullable=True, index=True)
     district_id = Column(Integer, ForeignKey("districts.id", ondelete="RESTRICT"), nullable=True, index=True)
+    district_scope = Column(String(30), nullable=True, index=True)
     state = Column(String(100), nullable=True, default="Rajasthan", server_default="Rajasthan")
     bank = relationship("Bank")
     company = relationship("Company")

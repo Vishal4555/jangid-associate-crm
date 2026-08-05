@@ -12,12 +12,15 @@ from sqlalchemy.orm import Session
 import app.db.base  # noqa: F401
 from app.db.database import Base
 from app.models.case import Case
+from app.models.billing import Billing
+from app.models.billing_month import BankMonthlyBillingSnapshot, BillingMonth
 from app.models.master import Bank, Company, District
 from app.models.payout_rate import BankPayoutRate
 from app.models.user import User
-from app.schemas.payout_rate import BankRateBulkCreate, BankRateCreate
+from app.schemas.payout_rate import BankRateBulkCreate, BankRateCreate, BankRateUpdate
+from app.core.security import require_roles
 from app.services.monthly_billing_service import resolve_monthly_bank_rate
-from app.services.payout_rate_service import create_bank_rates_bulk, create_rate
+from app.services.payout_rate_service import create_bank_rates_bulk, create_rate, delete_bank_rate, update_rate
 
 
 class HierarchicalBankRateTests(unittest.TestCase):
@@ -39,15 +42,19 @@ class HierarchicalBankRateTests(unittest.TestCase):
         return Case(case_no="R-1", company_id=self.company.id, company=self.company.name, bank=bank.name,
             district_id=district.id, district=district.name, city=city, receive_date=date(2026, 8, 10))
 
-    def rate(self, amount, bank=None, district=None, city=None):
+    def rate(self, amount, bank=None, district=None, city=None, scope=None):
         row = BankPayoutRate(company_id=self.company.id, bank_id=bank.id if bank else None,
-            district_id=district.id if district else None, city=city, payout_rate=Decimal(amount),
+            district_id=district.id if district else None, district_scope=scope, city=city, payout_rate=Decimal(amount),
             effective_from=date(2026, 8, 1), is_active=True)
         self.db.add(row); self.db.commit(); return row
 
-    def test_company_default_matches_any_bank_and_district(self):
+    def test_non_jaipur_matches_rajasthan_except_jaipur_default(self):
         row = self.rate("100")
-        self.assertEqual(resolve_monthly_bank_rate(self.db, self.case(self.sbi, self.jaipur, "Bagru")).rate_id, row.id)
+        self.assertEqual(resolve_monthly_bank_rate(self.db, self.case(self.sbi, self.baran)).rate_id, row.id)
+
+    def test_jaipur_never_matches_rajasthan_except_jaipur_default(self):
+        self.rate("100", scope="RAJASTHAN_EXCEPT_JAIPUR")
+        self.assertEqual(resolve_monthly_bank_rate(self.db, self.case(self.sbi, self.jaipur, "Bagru")).status, "MISSING")
 
     def test_specific_bank_overrides_company_default(self):
         self.rate("100"); row = self.rate("110", bank=self.hdfc)
@@ -79,6 +86,41 @@ class HierarchicalBankRateTests(unittest.TestCase):
             district_ids=[self.baran.id], payout_rate=Decimal("100"), effective_from=date(2026, 8, 1))
         with self.assertRaises(HTTPException): create_bank_rates_bulk(self.db, payload, self.user)
         self.assertEqual(self.db.query(BankPayoutRate).count(), 0)
+
+    def test_admin_can_delete_unused_rate(self):
+        row = self.rate("100")
+        require_roles("Admin")(self.user)
+        delete_bank_rate(self.db, row.id)
+        self.assertIsNone(self.db.get(BankPayoutRate, row.id))
+
+    def test_manager_cannot_hard_delete(self):
+        manager = User(full_name="Manager", username="manager", email="manager@test.local", password_hash="x", role="Manager")
+        with self.assertRaises(HTTPException) as caught: require_roles("Admin")(manager)
+        self.assertEqual(caught.exception.status_code, 403)
+
+    def test_delete_rate_used_by_billing_history_returns_conflict(self):
+        row = self.rate("100")
+        self.db.add(Billing(case_id=999, bank_payout_rate_id=row.id)); self.db.commit()
+        with self.assertRaises(HTTPException) as caught: delete_bank_rate(self.db, row.id)
+        self.assertEqual(caught.exception.status_code, 409)
+
+    def test_delete_rate_used_by_finalized_snapshot_returns_conflict(self):
+        row = self.rate("100")
+        period = BillingMonth(billing_month=date(2026, 8, 1), status="FINALIZED")
+        self.db.add(period); self.db.flush()
+        self.db.add(BankMonthlyBillingSnapshot(billing_month_id=period.id, date=date(2026, 8, 10),
+            case_status="Positive", rate=Decimal("100"), rate_status="MATCHED", bank_payout_rate_id=row.id))
+        self.db.commit()
+        with self.assertRaises(HTTPException) as caught: delete_bank_rate(self.db, row.id)
+        self.assertEqual(caught.exception.status_code, 409)
+
+    def test_deactivate_remains_available(self):
+        created = create_rate(self.db, "bank", BankRateCreate(company_id=self.company.id,
+            payout_rate=Decimal("100"), effective_from=date(2026, 8, 1)), self.user)
+        updated = update_rate(self.db, "bank", created.id, BankRateUpdate(company_id=self.company.id,
+            district_scope="RAJASTHAN_EXCEPT_JAIPUR", payout_rate=Decimal("100"),
+            effective_from=date(2026, 8, 1), is_active=False), self.user)
+        self.assertFalse(updated.is_active)
 
 
 if __name__ == "__main__": unittest.main()

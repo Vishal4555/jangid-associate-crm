@@ -8,6 +8,8 @@ from fastapi import HTTPException, status
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.billing import Billing
+from app.models.billing_month import BankMonthlyBillingSnapshot
 from app.models.case import Case
 from app.models.master import Bank, Company, District, Executive, LoanType, ProductType
 from app.models.payout_rate import BankPayoutRate, ExecutivePayoutRate
@@ -26,6 +28,30 @@ def _same(column, value: str | None):
     return func.lower(func.trim(func.coalesce(column, ""))) == (normalized(value) or "")
 
 
+def district_scope_for(rate, district: District | None = None) -> str:
+    """Read explicit scope, with compatibility for rows predating the column."""
+    if getattr(rate, "district_scope", None):
+        return rate.district_scope
+    if rate.district_id is None:
+        return "RAJASTHAN_EXCEPT_JAIPUR"
+    return "JAIPUR_ONLY" if district and normalized(district.name) == "jaipur" else "SELECTED_DISTRICTS"
+
+
+def _normalize_bank_scope(db: Session, data: dict) -> None:
+    if data.get("company_id") is None:
+        return
+    district = db.get(District, data["district_id"]) if data.get("district_id") is not None else None
+    scope = data.get("district_scope") or ("RAJASTHAN_EXCEPT_JAIPUR" if district is None else
+        "JAIPUR_ONLY" if normalized(district.name) == "jaipur" else "SELECTED_DISTRICTS")
+    data["district_scope"] = scope
+    if scope == "RAJASTHAN_EXCEPT_JAIPUR" and (district is not None or normalized(data.get("city")) is not None):
+        raise HTTPException(status_code=422, detail="Rajasthan Except Jaipur rules cannot specify district or city")
+    if scope == "JAIPUR_ONLY" and (district is None or normalized(district.name) != "jaipur"):
+        raise HTTPException(status_code=422, detail="Jaipur Only scope must reference Jaipur district")
+    if scope == "SELECTED_DISTRICTS" and district is None:
+        raise HTTPException(status_code=422, detail="Selected Districts scope requires a district")
+
+
 def _overlap(model, data: dict, exclude_id: int | None = None):
     end = data["effective_to"] or date.max
     query = select(model.id).where(
@@ -34,7 +60,7 @@ def _overlap(model, data: dict, exclude_id: int | None = None):
     )
     dimensions = ["bank_id", "city", "loan_type", "product_type"]
     if model is BankPayoutRate and (data.get("company_id") is not None or data.get("district_id") is not None):
-        dimensions = ["company_id", "bank_id", "district_id", "city"]
+        dimensions = ["company_id", "bank_id", "district_scope", "district_id", "city"]
     if model is ExecutivePayoutRate:
         dimensions.insert(0, "executive_id")
     for field in dimensions:
@@ -47,6 +73,8 @@ def _overlap(model, data: dict, exclude_id: int | None = None):
 
 
 def _ensure_refs(db: Session, data: dict, executive: bool = False) -> None:
+    if not executive:
+        _normalize_bank_scope(db, data)
     bank = db.get(Bank, data["bank_id"]) if data.get("bank_id") is not None else None
     if data.get("bank_id") is not None and bank is None:
         raise HTTPException(status_code=422, detail="Bank does not exist")
@@ -99,10 +127,9 @@ def list_rates(db: Session, kind: str, search: str | None = None, active: bool |
         if company_id is not None: query = query.filter(BankPayoutRate.company_id == company_id)
         if bank_id is not None: query = query.filter(BankPayoutRate.bank_id == bank_id)
         if district_id is not None: query = query.filter(BankPayoutRate.district_id == district_id)
-        if scope == "default": query = query.filter(BankPayoutRate.bank_id.is_(None), BankPayoutRate.district_id.is_(None))
-        elif scope == "bank": query = query.filter(BankPayoutRate.bank_id.is_not(None), BankPayoutRate.district_id.is_(None))
-        elif scope == "district": query = query.filter(BankPayoutRate.bank_id.is_(None), BankPayoutRate.district_id.is_not(None))
-        elif scope == "specific": query = query.filter(BankPayoutRate.bank_id.is_not(None), BankPayoutRate.district_id.is_not(None))
+        if scope == "rajasthan_except_jaipur": query = query.filter(BankPayoutRate.district_scope == "RAJASTHAN_EXCEPT_JAIPUR")
+        elif scope == "jaipur": query = query.filter(BankPayoutRate.district_scope == "JAIPUR_ONLY")
+        elif scope == "specific": query = query.filter(BankPayoutRate.district_scope == "SELECTED_DISTRICTS")
     rows = query.order_by(model.effective_from.desc(), model.id.desc()).all()
     responses = [_bank_response(row) if kind == "bank" else _executive_response(row) for row in rows]
     if search:
@@ -130,7 +157,15 @@ def create_rate(db: Session, kind: str, payload, user: User, commit: bool = True
 
 def create_bank_rates_bulk(db: Session, payload: BankRateBulkCreate, user: User) -> BankRateBulkResponse:
     bank_ids = list(dict.fromkeys(payload.bank_ids or [None]))
-    supplied_districts = payload.district_ids or ([payload.district_id] if payload.district_id is not None else [None])
+    if payload.district_scope == "JAIPUR_ONLY":
+        jaipur = db.scalar(select(District).where(func.lower(func.trim(District.name)) == "jaipur", District.is_active.is_(True)))
+        if jaipur is None: raise HTTPException(status_code=422, detail="Active Jaipur district does not exist")
+        supplied_districts = [jaipur.id]
+    elif payload.district_scope == "RAJASTHAN_EXCEPT_JAIPUR":
+        supplied_districts = [None]
+    else:
+        supplied_districts = payload.district_ids or ([payload.district_id] if payload.district_id is not None else [])
+        if not supplied_districts: raise HTTPException(status_code=422, detail="Select at least one district")
     district_ids = list(dict.fromkeys(supplied_districts))
     common = payload.model_dump(exclude={"bank_ids", "district_ids", "district_id"})
     validated: list[dict] = []
@@ -182,6 +217,23 @@ def update_rate(db: Session, kind: str, rate_id: int, payload, user: User):
     return _bank_response(rate) if kind == "bank" else _executive_response(rate)
 
 
+def delete_bank_rate(db: Session, rate_id: int) -> None:
+    rate = db.get(BankPayoutRate, rate_id)
+    if rate is None:
+        raise HTTPException(status_code=404, detail="Bank rate not found")
+    used_by_billing = db.scalar(select(Billing.id).where(Billing.bank_payout_rate_id == rate_id).limit(1)) is not None
+    used_by_snapshot = db.scalar(select(BankMonthlyBillingSnapshot.id).where(
+        BankMonthlyBillingSnapshot.bank_payout_rate_id == rate_id).limit(1)) is not None
+    if used_by_billing or used_by_snapshot:
+        raise HTTPException(status_code=409, detail="This rate is part of finalized billing history and cannot be deleted. Deactivate it instead.")
+    try:
+        db.delete(rate)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+
 @dataclass
 class RateMatch:
     status: str
@@ -225,11 +277,17 @@ def resolve_rates(db: Session, case_item: Case) -> tuple[RateMatch, RateMatch]:
         jaipur = bool(district and normalized(district.name) == "jaipur")
         ranked = []
         for row in bank_rows:
-            exact_city = jaipur and row.district_id == case_item.district_id and normalized(row.city) is not None and normalized(row.city) == normalized(case_item.city)
-            if normalized(row.city) is not None and not exact_city: continue
-            rank = (6 if row.bank_id is not None and exact_city else 5 if row.bank_id is not None and row.district_id is not None else
-                4 if row.bank_id is None and exact_city else 3 if row.bank_id is None and row.district_id is not None else
-                2 if row.bank_id is not None else 1)
+            scope = district_scope_for(row, district if row.district_id == case_item.district_id else None)
+            exact_city = normalized(row.city) is not None and normalized(row.city) == normalized(case_item.city)
+            if jaipur:
+                if scope != "JAIPUR_ONLY" or (normalized(row.city) is not None and not exact_city): continue
+                rank = (4 if row.bank_id is not None and exact_city else 3 if row.bank_id is not None else 2 if exact_city else 1)
+            else:
+                if normalized(row.city) is not None or scope == "JAIPUR_ONLY": continue
+                specific = scope == "SELECTED_DISTRICTS" and row.district_id == case_item.district_id
+                broad = scope == "RAJASTHAN_EXCEPT_JAIPUR" and row.district_id is None
+                if not specific and not broad: continue
+                rank = (4 if row.bank_id is not None and specific else 3 if specific else 2 if row.bank_id is not None else 1)
             ranked.append((rank, row))
         top = max((rank for rank, _ in ranked), default=0)
         candidates = [row for rank, row in ranked if rank == top]

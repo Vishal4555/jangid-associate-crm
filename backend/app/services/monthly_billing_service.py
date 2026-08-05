@@ -19,7 +19,7 @@ from app.models.billing_month import BillingMonth, ExecutiveMonthlyBillingSnapsh
 from app.schemas.monthly_billing import (BankMonthlyRow, ExecutiveMonthlyRow, MonthlyBillingResponse,
     MonthlySummary, PaymentRegisterResponse, PaymentRegisterUpdate, MonthStatusResponse,
     BankPaymentUpdate, BankPaymentResponse, BillingDashboardResponse)
-from app.services.payout_rate_service import RateMatch, normalized
+from app.services.payout_rate_service import RateMatch, district_scope_for, normalized
 
 
 def month_bounds(month: str) -> tuple[date, date]:
@@ -74,15 +74,18 @@ def resolve_monthly_bank_rate(db: Session, case_item: Case) -> RateMatch:
         jaipur = bool(district and normalized(district.name) == "jaipur")
         ranked = []
         for row in rows:
-            exact_city = jaipur and row.district_id == case_item.district_id and normalized(row.city) is not None and normalized(row.city) == normalized(case_item.city)
-            if normalized(row.city) is not None and not exact_city:
-                continue
-            # Required order: bank+city, bank+district, wildcard-bank+city,
-            # wildcard-bank+district, bank+state, company state default.
-            rank = (6 if row.bank_id is not None and exact_city else
-                    5 if row.bank_id is not None and row.district_id is not None else
-                    4 if row.bank_id is None and exact_city else
-                    3 if row.bank_id is None and row.district_id is not None else
+            scope = district_scope_for(row, district if row.district_id == case_item.district_id else None)
+            exact_city = normalized(row.city) is not None and normalized(row.city) == normalized(case_item.city)
+            if jaipur:
+                if scope != "JAIPUR_ONLY" or (normalized(row.city) is not None and not exact_city): continue
+                rank = (4 if row.bank_id is not None and exact_city else 3 if row.bank_id is not None else
+                    2 if exact_city else 1)
+            else:
+                if normalized(row.city) is not None or scope == "JAIPUR_ONLY": continue
+                specific = scope == "SELECTED_DISTRICTS" and row.district_id == case_item.district_id
+                broad = scope == "RAJASTHAN_EXCEPT_JAIPUR" and row.district_id is None
+                if not specific and not broad: continue
+                rank = (4 if row.bank_id is not None and specific else 3 if specific else
                     2 if row.bank_id is not None else 1)
             ranked.append((rank, row))
         if ranked:
@@ -170,7 +173,7 @@ def _snapshot_report(db: Session, month: str, period: BillingMonth) -> MonthlyBi
         remarks=x.remarks, snapshot_revision=period.revision_number) for x in executives]
     bank_rows = [BankMonthlyRow(case_id=x.case_id, date=x.date, company=x.company, bank=x.bank, los_no=x.los_no, name=x.applicant,
         address=x.address, district=x.district, city=x.city, mobile=x.mobile, status=x.case_status, remark=x.remark, rate=x.rate,
-        rate_status=x.rate_status) for x in banks]
+        rate_status=x.rate_status, bank_rate_id=x.bank_payout_rate_id) for x in banks]
     return MonthlyBillingResponse(month=month, executive_billing=executive_rows, bank_billing=bank_rows,
         summary=MonthlySummary(total_cases=len(banks), billable_cases=len(banks), missing_executive_rates=0,
         missing_bank_rates=0, ambiguous_rates=0, total_executive_payment=sum((x.gross_payment for x in executives), Decimal()),
@@ -204,7 +207,7 @@ def monthly_billing(db: Session, month: str, executive=None, bank=None, city=Non
         ambiguous += match.status == "AMBIGUOUS"
         bank_rows.append(BankMonthlyRow(case_id=getattr(item, "case_id", item.id), visit_id=getattr(item, "visit_id", None), visit_type=getattr(item, "visit_type", None), date=item.receive_date, company=item.company, bank=item.bank, los_no=item.los_no,
             name=item.applicant, address=item.address, district=item.district, city=item.city, mobile=item.mobile, status=item.status,
-            remark=item.remarks, rate=match.amount, rate_status=match.status))
+            remark=item.remarks, rate=match.amount, rate_status=match.status, bank_rate_id=match.rate_id))
 
     executive_rows, missing_executive, total_executive = [], 0, Decimal("0")
     for key, items in groups.items():
@@ -323,7 +326,8 @@ def _replace_snapshots(db: Session, period: BillingMonth, report: MonthlyBilling
         db.add(BankMonthlyBillingSnapshot(billing_month_id=period.id, case_id=row.case_id, date=row.date,
             company=row.company, bank=row.bank, los_no=row.los_no, applicant=row.name, address=row.address,
             district=row.district, city=row.city,
-            mobile=row.mobile, case_status=row.status, remark=row.remark, rate=row.rate or Decimal(), rate_status=row.rate_status))
+            mobile=row.mobile, case_status=row.status, remark=row.remark, rate=row.rate or Decimal(), rate_status=row.rate_status,
+            bank_payout_rate_id=row.bank_rate_id))
     totals = defaultdict(Decimal)
     for row in report.bank_billing:
         totals[((row.company or "").strip(), (row.bank or "Unspecified").strip(), (row.district or "").strip())] += row.rate or Decimal()

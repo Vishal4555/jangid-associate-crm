@@ -47,6 +47,7 @@ class BankMonthlyRow(BaseModel):
     remark: str | None
     rate: Decimal | None
     rate_status: RateStatus
+    bank_rate_id: int | None = None
 
 
 class MonthlySummary(BaseModel):

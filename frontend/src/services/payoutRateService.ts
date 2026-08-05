@@ -17,6 +17,10 @@ export async function bulkCreateBankRates(payload: BankRateBulkPayload) {
   try { return (await API.post<BankRateBulkResult>("/payout-rates/bank/bulk", payload)).data; }
   catch (error) { throw message(error); }
 }
+export async function deleteBankRate(id:number) {
+  try { await API.delete(`/payout-rates/bank/${id}`); }
+  catch (error) { throw message(error); }
+}
 export async function importPayoutRates(kind: RateKind, rows: ImportRateRow[], confirm: boolean) {
   try { return (await API.post<ImportResult>(`/billing/rates/${kind}/import`, { rows, confirm })).data; }
   catch (error) { throw message(error); }
