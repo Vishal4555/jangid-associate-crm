@@ -61,6 +61,7 @@ class BillingResponse(BillingBase):
     id: int
     case_id: int
     case_no: str
+    los_no: str | None = None
     applicant: str | None = None
     bank: str | None = None
     city: str | None = None
@@ -100,6 +101,7 @@ class BulkBillingRequest(BaseModel):
 class BulkPreviewRow(BaseModel):
     case_id: int
     case_no: str
+    los_no: str | None = None
     applicant: str | None
     bank: str | None
     city: str | None
@@ -140,6 +142,7 @@ class BulkCreateRequest(BaseModel):
 class BulkCreateResult(BaseModel):
     case_id: int
     case_no: str | None = None
+    los_no: str | None = None
     status: Literal["CREATED", "SKIPPED", "ERROR"]
     billing_id: int | None = None
     errors: list[str] = Field(default_factory=list)

@@ -97,7 +97,7 @@ export default function CaseTable({
           <thead className="sticky top-0 z-10 bg-[#0F172A] text-white">
 
             <tr>
-              <th className="p-3 text-left">Case No</th>
+              <th className="p-3 text-left">LOS / Application No</th>
               <th className="p-3 text-left">Receive Date</th>
               <th className="p-3 text-left">Closed Date</th>
               <th className="p-3 text-left">TAT</th>
@@ -121,7 +121,7 @@ export default function CaseTable({
                 className="border-b border-slate-100 transition hover:bg-orange-50/50 dark:border-slate-800 dark:hover:bg-slate-800/60"
               >
 
-                <td className="p-3 font-medium text-slate-700">{item.case_no}</td>
+                <td className="p-3 font-medium text-slate-700">{item.los_no || "Not available"}</td>
 
                 <td className="p-3">{item.receive_date || "-"}</td>
 
@@ -157,7 +157,7 @@ export default function CaseTable({
                     <button
                       onClick={() => onView(item)}
                       className="text-blue-600 hover:bg-blue-50 rounded p-1.5"
-                      aria-label={`View case ${item.case_no}`}
+                      aria-label={`View case ${item.los_no || "without LOS number"}`}
                       title="View"
                     >
                       <Eye size={18} />
@@ -166,7 +166,7 @@ export default function CaseTable({
                     <button
                       onClick={() => onEdit(item)}
                       className="text-green-600 hover:bg-green-50 rounded p-1.5"
-                      aria-label={`Edit case ${item.case_no}`}
+                      aria-label={`Edit case ${item.los_no || "without LOS number"}`}
                       title="Edit"
                     >
                       <Pencil size={18} />
@@ -175,7 +175,7 @@ export default function CaseTable({
                     <button
                       onClick={() => onDelete(item)}
                       className="text-red-600 hover:bg-red-50 rounded p-1.5"
-                      aria-label={`Delete case ${item.case_no}`}
+                      aria-label={`Delete case ${item.los_no || "without LOS number"}`}
                       title="Delete"
                     >
                       <Trash2 size={18} />

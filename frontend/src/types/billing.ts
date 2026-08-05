@@ -4,6 +4,7 @@ export interface BillingRecord {
   id: number;
   case_id: number;
   case_no: string;
+  los_no: string | null;
   applicant: string | null;
   bank: string | null;
   city: string | null;
@@ -60,7 +61,7 @@ export interface BulkPreviewFilters {
 }
 export type RateStatus = "MATCHED" | "MISSING" | "AMBIGUOUS";
 export interface BulkPreviewRow {
-  case_id: number; case_no: string; applicant: string | null; bank: string | null; city: string | null;
+  case_id: number; case_no: string; los_no: string | null; applicant: string | null; bank: string | null; city: string | null;
   location: string | null; executive: string | null; loan_type: string | null; product_type: string | null;
   bank_rate_status: RateStatus; bank_rate_id: number | null; bank_payout_amount: string | null;
   executive_rate_status: RateStatus; executive_rate_id: number | null; executive_payout_amount: string | null;
@@ -72,5 +73,5 @@ export interface BulkPreviewResponse {
 }
 export interface BulkCreateResponse {
   created_count: number; skipped_count: number; error_count: number;
-  results: { case_id: number; case_no: string | null; status: "CREATED" | "SKIPPED" | "ERROR"; billing_id: number | null; errors: string[] }[];
+  results: { case_id: number; case_no: string | null; los_no: string | null; status: "CREATED" | "SKIPPED" | "ERROR"; billing_id: number | null; errors: string[] }[];
 }

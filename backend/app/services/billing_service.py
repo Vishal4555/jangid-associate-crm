@@ -59,6 +59,7 @@ def _response(billing: Billing, case_item: Case) -> BillingResponse:
         id=billing.id,
         case_id=billing.case_id,
         case_no=case_item.case_no,
+        los_no=case_item.los_no,
         applicant=case_item.applicant,
         bank=case_item.bank,
         city=case_item.city,
@@ -99,7 +100,7 @@ def list_billing(
 ) -> list[BillingResponse]:
     query = select(Billing, Case).join(Case, Billing.case_id == Case.id)
     if case_no:
-        query = query.where(Case.case_no.ilike(f"%{case_no}%"))
+        query = query.where(or_(Case.los_no.ilike(f"%{case_no}%"), Case.case_no.ilike(f"%{case_no}%")))
     if bank:
         query = query.where(Case.bank == bank)
     if executive:
@@ -178,7 +179,7 @@ def bulk_preview(db: Session, payload: BulkBillingRequest) -> BulkPreviewRespons
         if existing: errors.append("Billing already exists")
         margin = bank_rate.amount - executive_rate.amount if bank_rate.amount is not None and executive_rate.amount is not None else None
         rows.append(BulkPreviewRow(
-            case_id=case_item.id, case_no=case_item.case_no, applicant=case_item.applicant,
+            case_id=case_item.id, case_no=case_item.case_no, los_no=case_item.los_no, applicant=case_item.applicant,
             bank=case_item.bank, city=case_item.city, executive=case_item.executive,
             loan_type=case_item.loan_type, product_type=case_item.product_type,
             bank_rate_status=bank_rate.status, bank_rate_id=bank_rate.rate_id, bank_payout_amount=bank_rate.amount,
@@ -206,14 +207,14 @@ def bulk_create(db: Session, case_ids: list[int], user: User) -> BulkCreateRespo
             results.append(BulkCreateResult(case_id=case_id, status="ERROR", errors=["Case not found"]))
             continue
         if case_id in existing:
-            results.append(BulkCreateResult(case_id=case_id, case_no=case_item.case_no, status="SKIPPED", errors=["Billing already exists"]))
+            results.append(BulkCreateResult(case_id=case_id, case_no=case_item.case_no, los_no=case_item.los_no, status="SKIPPED", errors=["Billing already exists"]))
             continue
         bank_rate, executive_rate = resolve_rates(db, case_item)
         errors = []
         if bank_rate.status != "MATCHED": errors.append("Bank Rate Not Configured" if bank_rate.status == "MISSING" else "Ambiguous Rate Configuration")
         if executive_rate.status != "MATCHED": errors.append("Executive Rate Not Configured" if executive_rate.status == "MISSING" else "Ambiguous Rate Configuration")
         if errors:
-            results.append(BulkCreateResult(case_id=case_id, case_no=case_item.case_no, status="ERROR", errors=list(dict.fromkeys(errors))))
+            results.append(BulkCreateResult(case_id=case_id, case_no=case_item.case_no, los_no=case_item.los_no, status="ERROR", errors=list(dict.fromkeys(errors))))
             continue
         billing = Billing(case_id=case_id, bank_payout_amount=bank_rate.amount, executive_payout_amount=executive_rate.amount,
             bank_payout_rate_id=bank_rate.rate_id, executive_payout_rate_id=executive_rate.rate_id,
@@ -223,7 +224,7 @@ def bulk_create(db: Session, case_ids: list[int], user: User) -> BulkCreateRespo
     try:
         db.flush()
         for billing, case_item in pending:
-            results.append(BulkCreateResult(case_id=case_item.id, case_no=case_item.case_no, status="CREATED", billing_id=billing.id))
+            results.append(BulkCreateResult(case_id=case_item.id, case_no=case_item.case_no, los_no=case_item.los_no, status="CREATED", billing_id=billing.id))
         db.commit()
     except IntegrityError as exc:
         db.rollback()

@@ -85,7 +85,7 @@ export default function BillingModal({ open, record, cases, onClose, onSave }: P
             <label className="md:col-span-2">Case
               <select disabled={Boolean(record)} className={inputClass} value={values.case_id} onChange={(event) => set("case_id", Number(event.target.value))}>
                 <option value={0}>Select case</option>
-                {cases.map((item) => <option key={item.id} value={item.id}>{item.case_no}</option>)}
+                {cases.map((item) => <option key={item.id} value={item.id}>{item.los_no || "LOS not available"}</option>)}
               </select>
             </label>
             <div className="md:col-span-2 grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-4 dark:bg-slate-800">

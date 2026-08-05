@@ -8,6 +8,7 @@ class NotificationResponse(BaseModel):
     message: str
     case_id: int
     case_no: str
+    los_no: str | None = None
     applicant: str | None = None
     executive: str | None = None
     occurred_at: str | None = None

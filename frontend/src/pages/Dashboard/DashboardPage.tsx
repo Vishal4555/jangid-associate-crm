@@ -230,7 +230,7 @@ export default function DashboardPage() {
                   className="rounded-xl border border-slate-200 p-3 dark:border-slate-700"
                 >
                   <p className="font-semibold text-slate-900 dark:text-white">
-                    {item.applicant || item.case_no}
+                    {item.applicant || item.los_no || "LOS not available"}
                   </p>
                   <p className="mt-1 text-xs font-medium text-orange-600 dark:text-orange-400">
                     {formatFollowUp(item.next_follow_up_at)}

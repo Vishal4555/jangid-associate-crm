@@ -5,7 +5,7 @@ import type { NotificationItem } from "../types/notification";
 export async function getNotifications(): Promise<NotificationItem[]> {
   try {
     const response = await API.get<NotificationItem[]>("/notifications");
-    return Array.isArray(response.data) ? response.data : [];
+    return Array.isArray(response.data) ? response.data.map(item=>({...item,case_no:item.los_no||"LOS not available"})) : [];
   } catch (error) {
     const message =
       typeof error === "object" &&

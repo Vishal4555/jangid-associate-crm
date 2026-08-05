@@ -116,7 +116,7 @@ export default function ViewCaseModal({ open, caseItem, onClose }: Props) {
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
           <div>
             <p className="text-sm text-slate-500">Case Details</p>
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{caseItem.case_no}</h2>
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{caseItem.los_no || "LOS not available"}</h2>
           </div>
           <button onClick={onClose} className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-slate-800" aria-label="Close case details">
             <X size={22} />
@@ -157,6 +157,10 @@ export default function ViewCaseModal({ open, caseItem, onClose }: Props) {
                 <p className="text-xs uppercase tracking-wide text-slate-500">Remarks</p>
                 <p className="mt-1 whitespace-pre-line text-slate-800 dark:text-slate-200">{caseItem.remarks || "-"}</p>
               </div>
+              <details className="rounded-lg border border-slate-200 p-4 text-sm text-slate-500">
+                <summary className="cursor-pointer font-medium">Technical details</summary>
+                <div className="mt-3"><DetailField label="Internal Case ID" value={caseItem.case_no} /></div>
+              </details>
             </div>
           ) : activeTab === "visits" ? (
             <CaseVisitsPanel caseItem={caseItem} />

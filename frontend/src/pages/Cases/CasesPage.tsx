@@ -104,6 +104,7 @@ export default function CasesPage() {
       }
 
       const searchableText = [
+        item.los_no,
         item.case_no,
         item.applicant,
         item.mobile,
@@ -141,7 +142,7 @@ export default function CasesPage() {
     setExporting(true);
 
     const headers = [
-      "Case No",
+      "LOS / Application No",
       "Receive Date",
       "Closed Date",
       "TAT",
@@ -157,7 +158,7 @@ export default function CasesPage() {
     ];
 
     const rows = filteredCases.map((item) => [
-      item.case_no,
+      item.los_no || "",
       item.receive_date,
       item.closed_date,
       exportTat(item.receive_date, item.closed_date),

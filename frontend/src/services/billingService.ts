@@ -8,7 +8,7 @@ function errorMessage(error: unknown): Error {
 }
 
 export async function previewBulkBilling(filters: BulkPreviewFilters): Promise<BulkPreviewResponse> {
-  try { return (await API.post<BulkPreviewResponse>("/billing/bulk-preview", filters)).data; }
+  try { const data=(await API.post<BulkPreviewResponse>("/billing/bulk-preview", filters)).data; return {...data,rows:data.rows.map(row=>({...row,case_no:row.los_no||"Not available"}))}; }
   catch (error) { throw errorMessage(error); }
 }
 

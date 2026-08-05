@@ -86,7 +86,7 @@ export default function CaseToolbar({
           <input
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Search by Case No, Applicant, Mobile"
+            placeholder="Search by LOS / Application No, Applicant, Mobile"
             className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-slate-800 transition focus:border-orange-400 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
           />
 

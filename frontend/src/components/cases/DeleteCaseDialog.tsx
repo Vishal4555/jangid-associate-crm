@@ -62,8 +62,8 @@ export default function DeleteCaseDialog({
 				</div>
 
 				<div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-3">
-					<p className="text-sm text-slate-600">Case No</p>
-					<p className="font-semibold text-slate-800">{targetCase.case_no}</p>
+					<p className="text-sm text-slate-600">LOS / Application No</p>
+					<p className="font-semibold text-slate-800">{targetCase.los_no || "Not available"}</p>
 				</div>
 
 				{error && (

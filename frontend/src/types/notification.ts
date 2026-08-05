@@ -12,6 +12,7 @@ export interface NotificationItem {
   message: string;
   case_id: number;
   case_no: string;
+  los_no: string | null;
   applicant: string | null;
   executive: string | null;
   occurred_at: string | null;
