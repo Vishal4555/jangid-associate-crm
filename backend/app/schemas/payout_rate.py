@@ -16,7 +16,7 @@ class RateBase(BaseModel):
     city: str | None = None
     loan_type: str | None = None
     product_type: str | None = None
-    payout_rate: Decimal = Field(ge=0, max_digits=14, decimal_places=2)
+    payout_rate: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
     effective_from: date
     effective_to: date | None = None
     is_active: bool = True
@@ -35,7 +35,7 @@ class RateBase(BaseModel):
 
 
 class BankRateCreate(RateBase):
-    bank_id: int
+    bank_id: int | None = None
     company_id: int | None = None
     district_id: int | None = None
     state: str | None = "Rajasthan"
@@ -48,8 +48,10 @@ class BankRateCreate(RateBase):
 
 class BankRateBulkCreate(RateBase):
     company_id: int
-    bank_ids: list[int] = Field(min_length=1, max_length=10000)
-    district_id: int
+    bank_ids: list[int] | None = Field(default=None, max_length=10000)
+    district_ids: list[int] | None = Field(default=None, max_length=10000)
+    # Backwards-compatible input accepted from the previous single-district UI.
+    district_id: int | None = None
     state: str | None = "Rajasthan"
 
     @field_validator("state", mode="before")
@@ -81,8 +83,8 @@ class RateResponseBase(RateBase):
 
 
 class BankRateResponse(RateResponseBase):
-    bank_id: int
-    bank_name: str
+    bank_id: int | None
+    bank_name: str | None
     company_id: int | None
     company_name: str | None
     district_id: int | None

@@ -5,7 +5,7 @@ export interface RateBase {
   payout_rate: string; effective_from: string; effective_to: string | null; is_active: boolean;
   remarks: string | null; created_at: string; updated_at: string;
 }
-export interface BankRate extends RateBase { bank_id: number; bank_name: string; company_id:number|null; company_name:string|null; district_id:number|null; district_name:string|null; state: string | null }
+export interface BankRate extends RateBase { bank_id: number|null; bank_name: string|null; company_id:number|null; company_name:string|null; district_id:number|null; district_name:string|null; state: string | null }
 export interface ExecutiveRate extends RateBase { executive_id: number; executive_name: string; bank_id: number | null; bank_name: string | null }
 export type PayoutRate = BankRate | ExecutiveRate;
 export interface RatePayload {
@@ -14,7 +14,7 @@ export interface RatePayload {
   loan_type?: string | null; product_type?: string | null; payout_rate: number; effective_from: string;
   effective_to?: string | null; is_active: boolean; remarks?: string | null;
 }
-export interface BankRateBulkPayload extends Omit<RatePayload,"bank_id"|"executive_id"> { company_id:number; bank_ids:number[]; district_id:number }
+export interface BankRateBulkPayload extends Omit<RatePayload,"bank_id"|"executive_id"|"district_id"> { company_id:number; bank_ids:number[]|null; district_ids:number[]|null }
 export interface BankRateBulkResult { created_count:number; failed_count:number; items:BankRate[]; errors:string[] }
 export interface ImportRateRow {
   row_number: number; company?:string; bank?: string; district?:string; executive?: string; state?: string; city?: string; location?: string;

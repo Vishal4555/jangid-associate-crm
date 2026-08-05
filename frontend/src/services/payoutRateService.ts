@@ -5,8 +5,8 @@ function message(error: unknown) {
   const e = error as { response?: { data?: { detail?: string } } };
   return new Error(e.response?.data?.detail || "Unable to process payout rates.");
 }
-export async function listPayoutRates(kind: RateKind, search = "") {
-  try { return (await API.get<PayoutRate[]>(`/billing/rates/${kind}`, { params: search ? { search } : {} })).data; }
+export async function listPayoutRates(kind: RateKind, search = "", filters:Record<string,string|number|boolean|undefined> = {}) {
+  try { return (await API.get<PayoutRate[]>(`/billing/rates/${kind}`, { params: { ...(search ? { search } : {}), ...filters } })).data; }
   catch (error) { throw message(error); }
 }
 export async function savePayoutRate(kind: RateKind, payload: RatePayload, id?: number) {

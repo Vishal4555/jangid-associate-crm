@@ -47,20 +47,20 @@ def _overlap(model, data: dict, exclude_id: int | None = None):
 
 
 def _ensure_refs(db: Session, data: dict, executive: bool = False) -> None:
-    bank = db.get(Bank, data.get("bank_id"))
-    if bank is None and (not executive or data.get("bank_id") is not None):
+    bank = db.get(Bank, data["bank_id"]) if data.get("bank_id") is not None else None
+    if data.get("bank_id") is not None and bank is None:
         raise HTTPException(status_code=422, detail="Bank does not exist")
     if executive and db.get(Executive, data["executive_id"]) is None:
         raise HTTPException(status_code=422, detail="Executive does not exist")
-    structured_bank_rate = not executive and (data.get("company_id") is not None or data.get("district_id") is not None)
+    structured_bank_rate = not executive and data.get("company_id") is not None
     company = db.get(Company, data.get("company_id")) if structured_bank_rate else None
-    district = db.get(District, data.get("district_id")) if structured_bank_rate else None
+    district = db.get(District, data.get("district_id")) if structured_bank_rate and data.get("district_id") is not None else None
     if structured_bank_rate and (company is None or not company.is_active):
         raise HTTPException(status_code=422, detail="Active company does not exist")
-    if structured_bank_rate and (district is None or not district.is_active):
+    if structured_bank_rate and data.get("district_id") is not None and (district is None or not district.is_active):
         raise HTTPException(status_code=422, detail="Active district does not exist")
     if structured_bank_rate:
-        if normalized(district.name) != "jaipur" and normalized(data.get("city")) is not None:
+        if (district is None or normalized(district.name) != "jaipur") and normalized(data.get("city")) is not None:
             raise HTTPException(status_code=422, detail="City-specific rates are allowed only for Jaipur district.")
 
 
@@ -73,7 +73,7 @@ def _ensure_no_overlap(db: Session, model, data: dict, exclude_id: int | None = 
 
 
 def _bank_response(rate: BankPayoutRate) -> BankRateResponse:
-    return BankRateResponse.model_validate({**rate.__dict__, "bank_name": rate.bank.name,
+    return BankRateResponse.model_validate({**rate.__dict__, "bank_name": rate.bank.name if rate.bank else None,
         "company_name": rate.company.name if rate.company else None,
         "district_name": rate.district.name if rate.district else None})
 
@@ -85,7 +85,9 @@ def _executive_response(rate: ExecutivePayoutRate) -> ExecutiveRateResponse:
     })
 
 
-def list_rates(db: Session, kind: str, search: str | None = None, active: bool | None = None):
+def list_rates(db: Session, kind: str, search: str | None = None, active: bool | None = None,
+        company_id: int | None = None, bank_id: int | None = None, district_id: int | None = None,
+        scope: str | None = None):
     model = BankPayoutRate if kind == "bank" else ExecutivePayoutRate
     query = db.query(model).options(joinedload(model.bank))
     if kind == "bank": query = query.options(joinedload(BankPayoutRate.company), joinedload(BankPayoutRate.district))
@@ -93,6 +95,14 @@ def list_rates(db: Session, kind: str, search: str | None = None, active: bool |
         query = query.options(joinedload(ExecutivePayoutRate.executive))
     if active is not None:
         query = query.filter(model.is_active == active)
+    if kind == "bank":
+        if company_id is not None: query = query.filter(BankPayoutRate.company_id == company_id)
+        if bank_id is not None: query = query.filter(BankPayoutRate.bank_id == bank_id)
+        if district_id is not None: query = query.filter(BankPayoutRate.district_id == district_id)
+        if scope == "default": query = query.filter(BankPayoutRate.bank_id.is_(None), BankPayoutRate.district_id.is_(None))
+        elif scope == "bank": query = query.filter(BankPayoutRate.bank_id.is_not(None), BankPayoutRate.district_id.is_(None))
+        elif scope == "district": query = query.filter(BankPayoutRate.bank_id.is_(None), BankPayoutRate.district_id.is_not(None))
+        elif scope == "specific": query = query.filter(BankPayoutRate.bank_id.is_not(None), BankPayoutRate.district_id.is_not(None))
     rows = query.order_by(model.effective_from.desc(), model.id.desc()).all()
     responses = [_bank_response(row) if kind == "bank" else _executive_response(row) for row in rows]
     if search:
@@ -119,25 +129,29 @@ def create_rate(db: Session, kind: str, payload, user: User, commit: bool = True
 
 
 def create_bank_rates_bulk(db: Session, payload: BankRateBulkCreate, user: User) -> BankRateBulkResponse:
-    bank_ids = list(dict.fromkeys(payload.bank_ids))
-    common = payload.model_dump(exclude={"bank_ids"})
-    validated: list[tuple[Bank, dict]] = []
+    bank_ids = list(dict.fromkeys(payload.bank_ids or [None]))
+    supplied_districts = payload.district_ids or ([payload.district_id] if payload.district_id is not None else [None])
+    district_ids = list(dict.fromkeys(supplied_districts))
+    common = payload.model_dump(exclude={"bank_ids", "district_ids", "district_id"})
+    validated: list[dict] = []
     errors: list[str] = []
     conflict = False
     for bank_id in bank_ids:
-        bank = db.get(Bank, bank_id)
-        bank_label = bank.name if bank else f"ID {bank_id}"
-        data = {**common, "bank_id": bank_id}
-        try:
-            _ensure_refs(db, data)
-            _ensure_no_overlap(db, BankPayoutRate, data)
-            validated.append((bank, data))
-        except HTTPException as exc:
-            conflict = conflict or exc.status_code == status.HTTP_409_CONFLICT
-            errors.append(f"{bank_label}: {exc.detail}")
+        for district_id in district_ids:
+            bank = db.get(Bank, bank_id) if bank_id is not None else None
+            district = db.get(District, district_id) if district_id is not None else None
+            label = f"{bank.name if bank else 'All Banks'} / {district.name if district else 'All Rajasthan'}"
+            data = {**common, "bank_id": bank_id, "district_id": district_id}
+            try:
+                _ensure_refs(db, data)
+                _ensure_no_overlap(db, BankPayoutRate, data)
+                validated.append(data)
+            except HTTPException as exc:
+                conflict = conflict or exc.status_code == status.HTTP_409_CONFLICT
+                errors.append(f"{label}: {exc.detail}")
     if errors:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT if conflict else 422, detail="; ".join(errors))
-    rows = [BankPayoutRate(**data, created_by_user_id=user.id, updated_by_user_id=user.id) for _, data in validated]
+    rows = [BankPayoutRate(**data, created_by_user_id=user.id, updated_by_user_id=user.id) for data in validated]
     try:
         db.add_all(rows)
         db.flush()
@@ -203,14 +217,22 @@ def resolve_rates(db: Session, case_item: Case) -> tuple[RateMatch, RateMatch]:
         bank_match = RateMatch("MISSING")
     elif case_item.company_id is not None and case_item.district_id is not None:
         bank_rows = db.scalars(select(BankPayoutRate).where(BankPayoutRate.company_id == case_item.company_id,
-            BankPayoutRate.bank_id == bank.id, BankPayoutRate.district_id == case_item.district_id,
+            or_(BankPayoutRate.bank_id.is_(None), BankPayoutRate.bank_id == bank.id),
+            or_(BankPayoutRate.district_id.is_(None), BankPayoutRate.district_id == case_item.district_id),
+            BankPayoutRate.payout_rate > 0,
             active_date(BankPayoutRate))).all()
         district = db.get(District, case_item.district_id)
-        if district and normalized(district.name) == "jaipur":
-            exact = [row for row in bank_rows if normalized(row.city) is not None and normalized(row.city) == normalized(case_item.city)]
-            candidates = exact or [row for row in bank_rows if normalized(row.city) is None]
-        else:
-            candidates = [row for row in bank_rows if normalized(row.city) is None]
+        jaipur = bool(district and normalized(district.name) == "jaipur")
+        ranked = []
+        for row in bank_rows:
+            exact_city = jaipur and row.district_id == case_item.district_id and normalized(row.city) is not None and normalized(row.city) == normalized(case_item.city)
+            if normalized(row.city) is not None and not exact_city: continue
+            rank = (6 if row.bank_id is not None and exact_city else 5 if row.bank_id is not None and row.district_id is not None else
+                4 if row.bank_id is None and exact_city else 3 if row.bank_id is None and row.district_id is not None else
+                2 if row.bank_id is not None else 1)
+            ranked.append((rank, row))
+        top = max((rank for rank, _ in ranked), default=0)
+        candidates = [row for rank, row in ranked if rank == top]
         bank_match = RateMatch("MISSING") if not candidates else RateMatch("AMBIGUOUS") if len(candidates) != 1 else RateMatch("MATCHED", candidates[0].id, candidates[0].payout_rate)
     elif case_item.company_id is None and case_item.district_id is None:
         bank_rows = db.scalars(select(BankPayoutRate).where(BankPayoutRate.company_id.is_(None), BankPayoutRate.district_id.is_(None),

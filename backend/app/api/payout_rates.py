@@ -14,8 +14,11 @@ access = Depends(require_roles("Admin", "Manager"))
 
 
 @router.get("/bank", response_model=list[BankRateResponse])
-def get_bank_rates(search: str | None = None, active: bool | None = None, db: Session = Depends(get_db), _: User = access):
-    return list_rates(db, "bank", search, active)
+def get_bank_rates(search: str | None = None, active: bool | None = None, company_id: int | None = None,
+        bank_id: int | None = None, district_id: int | None = None,
+        scope: str | None = Query(None, pattern="^(default|bank|district|specific)$"),
+        db: Session = Depends(get_db), _: User = access):
+    return list_rates(db, "bank", search, active, company_id, bank_id, district_id, scope)
 
 
 @router.post("/bank", response_model=BankRateResponse, status_code=status.HTTP_201_CREATED)

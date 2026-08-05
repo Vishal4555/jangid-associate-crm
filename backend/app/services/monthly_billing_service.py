@@ -67,14 +67,29 @@ def resolve_monthly_bank_rate(db: Session, case_item: Case) -> RateMatch:
     if bank is None: return RateMatch("MISSING")
     if case_item.company_id is not None and case_item.district_id is not None:
         rows = db.scalars(select(BankPayoutRate).where(BankPayoutRate.company_id == case_item.company_id,
-            BankPayoutRate.bank_id == bank.id, BankPayoutRate.district_id == case_item.district_id,
-            *_effective(BankPayoutRate, case_item.receive_date))).all()
+            or_(BankPayoutRate.bank_id.is_(None), BankPayoutRate.bank_id == bank.id),
+            or_(BankPayoutRate.district_id.is_(None), BankPayoutRate.district_id == case_item.district_id),
+            BankPayoutRate.payout_rate > 0, *_effective(BankPayoutRate, case_item.receive_date))).all()
         district = db.get(District, case_item.district_id)
-        if district and normalized(district.name) == "jaipur":
-            exact = [row for row in rows if normalized(row.city) is not None and normalized(row.city) == normalized(case_item.city)]
-            rows = exact or [row for row in rows if normalized(row.city) is None]
+        jaipur = bool(district and normalized(district.name) == "jaipur")
+        ranked = []
+        for row in rows:
+            exact_city = jaipur and row.district_id == case_item.district_id and normalized(row.city) is not None and normalized(row.city) == normalized(case_item.city)
+            if normalized(row.city) is not None and not exact_city:
+                continue
+            # Required order: bank+city, bank+district, wildcard-bank+city,
+            # wildcard-bank+district, bank+state, company state default.
+            rank = (6 if row.bank_id is not None and exact_city else
+                    5 if row.bank_id is not None and row.district_id is not None else
+                    4 if row.bank_id is None and exact_city else
+                    3 if row.bank_id is None and row.district_id is not None else
+                    2 if row.bank_id is not None else 1)
+            ranked.append((rank, row))
+        if ranked:
+            top = max(rank for rank, _ in ranked)
+            rows = [row for rank, row in ranked if rank == top]
         else:
-            rows = [row for row in rows if normalized(row.city) is None]
+            rows = []
     elif case_item.company_id is None and case_item.district_id is None and normalized(case_item.city):
         rows = db.scalars(select(BankPayoutRate).where(BankPayoutRate.company_id.is_(None),
             BankPayoutRate.district_id.is_(None), BankPayoutRate.bank_id == bank.id,
