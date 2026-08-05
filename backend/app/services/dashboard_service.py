@@ -36,7 +36,7 @@ TAT_VALUE = case((TAT_CONDITION, TAT_DAYS), else_=None)
 PENDING_AGE_DAYS = func.current_date() - Case.receive_date
 
 
-def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
+def get_dashboard_summary(db: Session, executive_scope: str | None = None) -> DashboardSummaryResponse:
     today = date.today()
     month_start = today.replace(day=1)
 
@@ -65,6 +65,7 @@ def get_dashboard_summary(db: Session) -> DashboardSummaryResponse:
         ).label("this_month_cases"),
     )
 
+    if executive_scope is not None: summary_query = summary_query.where(Case.executive == executive_scope)
     row = db.execute(summary_query).one()
 
     return DashboardSummaryResponse(
@@ -204,21 +205,22 @@ def _ageing_values(row) -> dict[str, int]:
     }
 
 
-def _group_pending_ageing(db: Session, field):
+def _group_pending_ageing(db: Session, field, executive_scope: str | None = None):
     label = func.coalesce(func.nullif(func.trim(field), ""), "Unassigned").label("name")
     query = (
         select(label, *_ageing_metrics())
-        .where(PENDING_CONDITION)
+        .where(PENDING_CONDITION, *( [Case.executive == executive_scope] if executive_scope is not None else []))
         .group_by(label)
         .order_by(func.sum(case((and_(Case.receive_date.is_not(None), PENDING_AGE_DAYS >= 11), 1), else_=0)).desc(), func.count(Case.id).desc())
     )
     return db.execute(query).all()
 
 
-def get_pending_ageing(db: Session) -> PendingAgeingResponse:
-    summary = db.execute(select(*_ageing_metrics()).where(PENDING_CONDITION)).one()
-    executives = _group_pending_ageing(db, Case.executive)
-    cities = _group_pending_ageing(db, Case.city)
+def get_pending_ageing(db: Session, executive_scope: str | None = None) -> PendingAgeingResponse:
+    scope = [Case.executive == executive_scope] if executive_scope is not None else []
+    summary = db.execute(select(*_ageing_metrics()).where(PENDING_CONDITION, *scope)).one()
+    executives = _group_pending_ageing(db, Case.executive, executive_scope)
+    cities = _group_pending_ageing(db, Case.city, executive_scope)
     return PendingAgeingResponse(
         summary=PendingAgeingSummaryResponse(**_ageing_values(summary)),
         executives=[

@@ -3,7 +3,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.security import require_roles
+from app.core.security import require_permission
 from app.db.database import get_db
 from app.models.user import User
 from app.models.master import Bank, Company, CompanyBank, District
@@ -64,8 +64,11 @@ from app.services.masters_service import (
 
 
 router = APIRouter(prefix="/masters", tags=["masters"])
-read_access = Depends(require_roles("Admin", "Manager"))
-write_access = Depends(require_roles("Admin"))
+read_access = Depends(require_permission("masters.view"))
+banks_access = Depends(require_permission("banks.manage"))
+executives_access = Depends(require_permission("executives.manage"))
+loan_types_access = Depends(require_permission("loan_types.manage"))
+product_types_access = Depends(require_permission("product_types.manage"))
 
 
 @router.get("/banks", response_model=BankPageResponse)
@@ -86,17 +89,17 @@ def get_bank_detail(bank_id: int, db: Session = Depends(get_db), _: User = read_
 
 
 @router.post("/banks", response_model=BankResponse, status_code=status.HTTP_201_CREATED)
-def add_bank(bank: BankCreate, db: Session = Depends(get_db), _: User = write_access):
+def add_bank(bank: BankCreate, db: Session = Depends(get_db), _: User = banks_access):
     return create_bank(db, bank)
 
 
 @router.put("/banks/{bank_id}", response_model=BankResponse)
-def edit_bank(bank_id: int, bank: BankUpdate, db: Session = Depends(get_db), _: User = write_access):
+def edit_bank(bank_id: int, bank: BankUpdate, db: Session = Depends(get_db), _: User = banks_access):
     return update_bank(db, bank_id, bank)
 
 
 @router.delete("/banks/{bank_id}")
-def remove_bank(bank_id: int, db: Session = Depends(get_db), _: User = write_access):
+def remove_bank(bank_id: int, db: Session = Depends(get_db), _: User = banks_access):
     delete_bank(db, bank_id)
     return {"message": "Bank deleted successfully"}
 
@@ -120,17 +123,17 @@ def get_branch_detail(branch_id: int, db: Session = Depends(get_db), _: User = r
 
 
 @router.post("/branches", response_model=BranchResponse, status_code=status.HTTP_201_CREATED)
-def add_branch(branch: BranchCreate, db: Session = Depends(get_db), _: User = write_access):
+def add_branch(branch: BranchCreate, db: Session = Depends(get_db), _: User = banks_access):
     return create_branch(db, branch)
 
 
 @router.put("/branches/{branch_id}", response_model=BranchResponse)
-def edit_branch(branch_id: int, branch: BranchUpdate, db: Session = Depends(get_db), _: User = write_access):
+def edit_branch(branch_id: int, branch: BranchUpdate, db: Session = Depends(get_db), _: User = banks_access):
     return update_branch(db, branch_id, branch)
 
 
 @router.delete("/branches/{branch_id}")
-def remove_branch(branch_id: int, db: Session = Depends(get_db), _: User = write_access):
+def remove_branch(branch_id: int, db: Session = Depends(get_db), _: User = banks_access):
     delete_branch(db, branch_id)
     return {"message": "Branch deleted successfully"}
 
@@ -156,17 +159,17 @@ def get_executive_detail(executive_id: int, db: Session = Depends(get_db), _: Us
 
 
 @router.post("/executives", response_model=ExecutiveResponse, status_code=status.HTTP_201_CREATED)
-def add_executive(executive: ExecutiveCreate, db: Session = Depends(get_db), _: User = write_access):
+def add_executive(executive: ExecutiveCreate, db: Session = Depends(get_db), _: User = executives_access):
     return create_executive(db, executive)
 
 
 @router.put("/executives/{executive_id}", response_model=ExecutiveResponse)
-def edit_executive(executive_id: int, executive: ExecutiveUpdate, db: Session = Depends(get_db), _: User = write_access):
+def edit_executive(executive_id: int, executive: ExecutiveUpdate, db: Session = Depends(get_db), _: User = executives_access):
     return update_executive(db, executive_id, executive)
 
 
 @router.delete("/executives/{executive_id}")
-def remove_executive(executive_id: int, db: Session = Depends(get_db), _: User = write_access):
+def remove_executive(executive_id: int, db: Session = Depends(get_db), _: User = executives_access):
     delete_executive(db, executive_id)
     return {"message": "Executive deleted successfully"}
 
@@ -189,17 +192,17 @@ def get_loan_type_detail(loan_type_id: int, db: Session = Depends(get_db), _: Us
 
 
 @router.post("/loan-types", response_model=LoanTypeResponse, status_code=status.HTTP_201_CREATED)
-def add_loan_type(loan_type: LoanTypeCreate, db: Session = Depends(get_db), _: User = write_access):
+def add_loan_type(loan_type: LoanTypeCreate, db: Session = Depends(get_db), _: User = loan_types_access):
     return create_loan_type(db, loan_type)
 
 
 @router.put("/loan-types/{loan_type_id}", response_model=LoanTypeResponse)
-def edit_loan_type(loan_type_id: int, loan_type: LoanTypeUpdate, db: Session = Depends(get_db), _: User = write_access):
+def edit_loan_type(loan_type_id: int, loan_type: LoanTypeUpdate, db: Session = Depends(get_db), _: User = loan_types_access):
     return update_loan_type(db, loan_type_id, loan_type)
 
 
 @router.delete("/loan-types/{loan_type_id}")
-def remove_loan_type(loan_type_id: int, db: Session = Depends(get_db), _: User = write_access):
+def remove_loan_type(loan_type_id: int, db: Session = Depends(get_db), _: User = loan_types_access):
     delete_loan_type(db, loan_type_id)
     return {"message": "Loan type deleted successfully"}
 
@@ -222,22 +225,23 @@ def get_product_type_detail(product_type_id: int, db: Session = Depends(get_db),
 
 
 @router.post("/product-types", response_model=ProductTypeResponse, status_code=status.HTTP_201_CREATED)
-def add_product_type(product_type: ProductTypeCreate, db: Session = Depends(get_db), _: User = write_access):
+def add_product_type(product_type: ProductTypeCreate, db: Session = Depends(get_db), _: User = product_types_access):
     return create_product_type(db, product_type)
 
 
 @router.put("/product-types/{product_type_id}", response_model=ProductTypeResponse)
-def edit_product_type(product_type_id: int, product_type: ProductTypeUpdate, db: Session = Depends(get_db), _: User = write_access):
+def edit_product_type(product_type_id: int, product_type: ProductTypeUpdate, db: Session = Depends(get_db), _: User = product_types_access):
     return update_product_type(db, product_type_id, product_type)
 
 
 @router.delete("/product-types/{product_type_id}")
-def remove_product_type(product_type_id: int, db: Session = Depends(get_db), _: User = write_access):
+def remove_product_type(product_type_id: int, db: Session = Depends(get_db), _: User = product_types_access):
     delete_product_type(db, product_type_id)
     return {"message": "Product type deleted successfully"}
 
 
-company_write_access = Depends(require_roles("Admin", "Manager"))
+company_write_access = Depends(require_permission("companies.manage"))
+district_write_access = Depends(require_permission("districts.manage"))
 
 
 def _page(items):
@@ -345,7 +349,7 @@ def get_districts(active_only: bool = False, db: Session = Depends(get_db), _: U
 
 
 @router.post("/districts", response_model=DistrictResponse, status_code=status.HTTP_201_CREATED)
-def add_district(payload: DistrictCreate, db: Session = Depends(get_db), _: User = company_write_access):
+def add_district(payload: DistrictCreate, db: Session = Depends(get_db), _: User = district_write_access):
     row = District(**payload.model_dump()); db.add(row)
     try: db.commit(); db.refresh(row)
     except IntegrityError as exc: db.rollback(); raise HTTPException(status_code=409, detail="District already exists") from exc
@@ -353,7 +357,7 @@ def add_district(payload: DistrictCreate, db: Session = Depends(get_db), _: User
 
 
 @router.put("/districts/{item_id}", response_model=DistrictResponse)
-def edit_district(item_id: int, payload: DistrictUpdate, db: Session = Depends(get_db), _: User = company_write_access):
+def edit_district(item_id: int, payload: DistrictUpdate, db: Session = Depends(get_db), _: User = district_write_access):
     row = db.get(District, item_id)
     if not row: raise HTTPException(status_code=404, detail="District not found")
     for key, value in payload.model_dump(exclude_unset=True).items(): setattr(row, key, value)

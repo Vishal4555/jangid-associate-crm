@@ -15,7 +15,6 @@ import type { LucideIcon } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
-import type { AuthRole } from "../types/auth";
 
 type SidebarPath =
   | "/dashboard"
@@ -36,23 +35,23 @@ type MenuItem = {
   icon: LucideIcon;
   name: string;
   path: SidebarPath;
-  roles: AuthRole[];
+  permissions: string[];
 };
 
 const menus: MenuItem[] = [
-  { icon: LayoutDashboard, name: "Dashboard", path: "/dashboard", roles: ["Admin", "Manager", "Executive"] },
-  { icon: FolderOpen, name: "Cases", path: "/cases", roles: ["Admin", "Manager", "Executive"] },
-  { icon: ReceiptIndianRupee, name: "Monthly Billing", path: "/billing", roles: ["Admin", "Manager"] },
-  { icon: Layers3, name: "Executive Rate Master", path: "/billing/executive-rates", roles: ["Admin", "Manager"] },
-  { icon: Layers3, name: "Bank Rate Master", path: "/billing/bank-rates", roles: ["Admin", "Manager"] },
-  { icon: ReceiptIndianRupee, name: "Payment Register", path: "/billing/payment-register", roles: ["Admin", "Manager"] },
-  { icon: BarChart3, name: "Billing Dashboard", path: "/billing/dashboard", roles: ["Admin", "Manager"] },
-  { icon: Search, name: "Search", path: "/search", roles: ["Admin", "Manager", "Executive"] },
-  { icon: BarChart3, name: "Reports", path: "/reports", roles: ["Admin", "Manager"] },
-  { icon: Layers3, name: "Masters", path: "/masters", roles: ["Admin", "Manager"] },
-  { icon: Layers3, name: "Company & District Masters", path: "/masters/companies", roles: ["Admin", "Manager"] },
-  { icon: Users, name: "Users", path: "/users", roles: ["Admin"] },
-  { icon: Settings, name: "Settings", path: "/settings", roles: ["Admin", "Manager"] },
+  { icon: LayoutDashboard, name: "Dashboard", path: "/dashboard", permissions: ["dashboard.view"] },
+  { icon: FolderOpen, name: "Cases", path: "/cases", permissions: ["cases.view"] },
+  { icon: ReceiptIndianRupee, name: "Monthly Billing", path: "/billing", permissions: ["billing.view"] },
+  { icon: Layers3, name: "Executive Rate Master", path: "/billing/executive-rates", permissions: ["billing.rate_master"] },
+  { icon: Layers3, name: "Bank Rate Master", path: "/billing/bank-rates", permissions: ["billing.rate_master"] },
+  { icon: ReceiptIndianRupee, name: "Payment Register", path: "/billing/payment-register", permissions: ["billing.payment_register"] },
+  { icon: BarChart3, name: "Billing Dashboard", path: "/billing/dashboard", permissions: ["billing.dashboard"] },
+  { icon: Search, name: "Search", path: "/search", permissions: ["search.view"] },
+  { icon: BarChart3, name: "Reports", path: "/reports", permissions: ["reports.view","reports.view_own"] },
+  { icon: Layers3, name: "Masters", path: "/masters", permissions: ["masters.view"] },
+  { icon: Layers3, name: "Company & District Masters", path: "/masters/companies", permissions: ["masters.view"] },
+  { icon: Users, name: "Users", path: "/users", permissions: ["users.view"] },
+  { icon: Settings, name: "Settings", path: "/settings", permissions: ["settings.view"] },
 ];
 
 export default function Sidebar({
@@ -69,7 +68,7 @@ export default function Sidebar({
   const navigate = useNavigate();
   const { currentUser, logout } = useAuth();
   const visibleMenus = menus.filter(
-    (item) => currentUser?.role && item.roles.includes(currentUser.role),
+    (item) => item.permissions.some(code=>currentUser?.permissions.includes(code)),
   );
 
   const handleLogout = () => {

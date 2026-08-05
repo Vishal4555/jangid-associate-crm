@@ -6,10 +6,10 @@ from time import monotonic
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from app.core.security import get_current_active_user
+from app.core.security import get_current_active_user, require_permission
 from app.db.database import get_db
 from app.models.user import User
 from app.schemas.auth import ProfileUpdate, Token, UserLogin, UserResponse
@@ -97,16 +97,16 @@ def read_current_user(current_user: User = Depends(get_current_active_user)):
 @router.put("/me", response_model=UserResponse)
 def update_current_user(
     payload: ProfileUpdate,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_permission("settings.view")),
     db: Session = Depends(get_db),
 ):
     if payload.email and payload.email != current_user.email:
-        existing = db.scalar(select(User).where(User.email == payload.email))
+        existing = db.scalar(select(User).where(func.lower(User.email) == str(payload.email).strip().lower(), User.id != current_user.id))
         if existing is not None:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already exists")
 
     for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(current_user, field, value)
+        setattr(current_user, field, str(value).strip().lower() if field == "email" else value.strip())
 
     try:
         db.commit()

@@ -150,7 +150,8 @@ export default function MastersPage() {
   const [referenceBanks, setReferenceBanks] = useState<Bank[]>([]);
   const [referenceLoading, setReferenceLoading] = useState(true);
 
-  const isAdmin = currentUser?.role === "Admin";
+  const managePermission:Record<MasterKey,string>={banks:"banks.manage",branches:"banks.manage",executives:"executives.manage","loan-types":"loan_types.manage","product-types":"product_types.manage",companies:"companies.manage","company-banks":"companies.manage",districts:"districts.manage"};
+  const isAdmin = Boolean(currentUser?.permissions.includes(managePermission[activeMaster]));
 
   useEffect(() => {
     let cancelled = false;
@@ -367,7 +368,7 @@ export default function MastersPage() {
 
   const columns = columnsFor(activeMaster);
 
-  if (!currentUser || (currentUser.role !== "Admin" && currentUser.role !== "Manager")) {
+  if (!currentUser?.permissions.includes("masters.view")) {
     return (
       <DashboardLayout>
         <div className="rounded-3xl border border-amber-200 bg-amber-50 p-8 text-amber-950 shadow-sm">
@@ -376,7 +377,7 @@ export default function MastersPage() {
             Masters access restricted
           </div>
           <p className="mt-3 text-sm text-amber-900/80">
-            Your role does not have permission to view the Masters module.
+            Your account does not have permission to view the Masters module.
           </p>
         </div>
       </DashboardLayout>

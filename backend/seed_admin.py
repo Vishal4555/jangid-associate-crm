@@ -4,11 +4,12 @@ from app.core.security import hash_password
 from app.db.base import Base
 from app.db.database import SessionLocal, engine
 from app.models.user import User
+from app.services.permission_service import ensure_permission_catalog
 
 
 ADMIN_USERNAME = "admin"
 ADMIN_EMAIL = "admin@jangidcrm.com"
-ADMIN_PASSWORD = "Admin@123"
+ADMIN_PASSWORD = "Admin@Change123!"
 ADMIN_ROLE = "Admin"
 
 
@@ -17,6 +18,7 @@ def seed_admin_user() -> None:
 
     db = SessionLocal()
     try:
+        ensure_permission_catalog(db)
         existing_user = (
             db.query(User)
             .filter((User.username == ADMIN_USERNAME) | (User.email == ADMIN_EMAIL))
@@ -24,6 +26,7 @@ def seed_admin_user() -> None:
         )
 
         if existing_user is not None:
+            db.commit()
             print("Admin user already exists. No changes made.")
             return
 

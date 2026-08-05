@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.security import get_current_active_user
+from app.core.security import has_permission, require_any_permission, require_permission
 from app.db.database import get_db
 from app.models.case import Case
 from app.models.case_activity import CaseActivity
@@ -31,6 +31,17 @@ def _visit(db: Session, case_id: int, visit_id: int) -> CaseVisit:
     return item
 
 
+def _executive_name(user: User) -> str:
+    if user.role != "Executive" or user.executive is None:
+        raise HTTPException(status_code=403, detail="Executive account is not linked to an Executive Master record")
+    return user.executive.full_name
+
+
+def _assert_assigned(visit: CaseVisit, user: User) -> None:
+    if user.role == "Executive" and visit.executive != _executive_name(user):
+        raise HTTPException(status_code=403, detail="This visit is not assigned to you")
+
+
 def _dimensions(db: Session, data: dict) -> None:
     if "district_id" not in data:
         return
@@ -52,13 +63,15 @@ def _activity(case_id: int, kind: str, user: User, visit: CaseVisit, field=None,
 
 
 @router.get("", response_model=list[CaseVisitResponse])
-def list_visits(case_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_active_user)):
+def list_visits(case_id: int, db: Session = Depends(get_db), user: User = Depends(require_permission("cases.view"))):
     _case(db, case_id)
-    return db.scalars(select(CaseVisit).where(CaseVisit.case_id == case_id).order_by(CaseVisit.id)).all()
+    stmt = select(CaseVisit).where(CaseVisit.case_id == case_id)
+    if user.role == "Executive": stmt = stmt.where(CaseVisit.executive == _executive_name(user))
+    return db.scalars(stmt.order_by(CaseVisit.id)).all()
 
 
 @router.post("", response_model=CaseVisitResponse, status_code=status.HTTP_201_CREATED)
-def create_visit(case_id: int, payload: CaseVisitCreate, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
+def create_visit(case_id: int, payload: CaseVisitCreate, db: Session = Depends(get_db), user: User = Depends(require_permission("visits.create"))):
     _case(db, case_id)
     data = payload.model_dump()
     _dimensions(db, data)
@@ -72,15 +85,19 @@ def create_visit(case_id: int, payload: CaseVisitCreate, db: Session = Depends(g
 
 
 @router.get("/{visit_id}", response_model=CaseVisitResponse)
-def get_visit(case_id: int, visit_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_active_user)):
+def get_visit(case_id: int, visit_id: int, db: Session = Depends(get_db), user: User = Depends(require_permission("cases.view"))):
     _case(db, case_id)
-    return _visit(db, case_id, visit_id)
+    visit = _visit(db, case_id, visit_id); _assert_assigned(visit, user); return visit
 
 
 @router.put("/{visit_id}", response_model=CaseVisitResponse)
-def update_visit(case_id: int, visit_id: int, payload: CaseVisitUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
-    _case(db, case_id); visit = _visit(db, case_id, visit_id)
+def update_visit(case_id: int, visit_id: int, payload: CaseVisitUpdate, db: Session = Depends(get_db), user: User = Depends(require_any_permission("visits.edit", "cases.edit_assigned"))):
+    _case(db, case_id); visit = _visit(db, case_id, visit_id); _assert_assigned(visit, user)
     data = payload.model_dump(exclude_unset=True); _dimensions(db, data)
+    if user.role == "Executive" and not has_permission(user, "visits.edit"):
+        allowed = {"status", "negative_reason", "remarks", "next_follow_up_at", "follow_up_note"}
+        forbidden = set(data) - allowed
+        if forbidden: raise HTTPException(status_code=403, detail=f"Executives cannot update: {', '.join(sorted(forbidden))}")
     old_status = visit.status
     new_status = data.get("status", old_status)
     if new_status == "Pending": data["closed_date"] = None
@@ -100,7 +117,7 @@ def update_visit(case_id: int, visit_id: int, payload: CaseVisitUpdate, db: Sess
 
 
 @router.delete("/{visit_id}", response_model=MessageResponse)
-def delete_visit(case_id: int, visit_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
+def delete_visit(case_id: int, visit_id: int, db: Session = Depends(get_db), user: User = Depends(require_permission("visits.delete"))):
     _case(db, case_id); visit = _visit(db, case_id, visit_id)
     activity = _activity(case_id, "VISIT_DELETED", user, visit)
     db.delete(visit); db.add(activity); db.commit()

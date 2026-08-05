@@ -1,14 +1,17 @@
+from datetime import datetime, timezone
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.user import User
 from app.schemas.auth import Token, UserCreate, UserLogin
+from app.services.permission_service import grant_default_permissions
 
 
 def get_user_by_identifier(db: Session, identifier: str) -> User | None:
     return (
         db.query(User)
-        .filter((User.username == identifier) | (User.email == identifier))
+        .filter((func.lower(User.username) == identifier.strip().lower()) | (func.lower(User.email) == identifier.strip().lower()))
         .first()
     )
 
@@ -21,6 +24,9 @@ def authenticate_user(db: Session, login_data: UserLogin) -> User | None:
         return None
     if not user.is_active:
         return None
+    user.last_login = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(user)
     return user
 
 
@@ -42,6 +48,8 @@ def create_user(db: Session, user_data: UserCreate) -> User:
         is_active=True,
     )
     db.add(user)
+    db.flush()
+    grant_default_permissions(db, user)
     db.commit()
     db.refresh(user)
     return user

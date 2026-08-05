@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import os
+import re
 from typing import Any
 
 import jwt
@@ -10,18 +11,25 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.user import User
+from app.core.permissions import ALL_PERMISSION_CODES
 
 
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production")
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def hash_password(password: str) -> str:
+    validate_password_strength(password)
     return pwd_context.hash(password)
+
+
+def validate_password_strength(password: str) -> None:
+    if len(password) < 12 or not re.search(r"[A-Z]", password) or not re.search(r"[a-z]", password) or not re.search(r"\d", password) or not re.search(r"[^A-Za-z0-9]", password):
+        raise ValueError("Password must be at least 12 characters and include uppercase, lowercase, number, and special character")
 
 
 def verify_password(plain_password: str, password_hash: str) -> bool:
@@ -94,3 +102,28 @@ def require_roles(*allowed_roles: str):
         return current_user
 
     return role_dependency
+
+
+def has_permission(user: User, code: str) -> bool:
+    if not user.is_active: return False
+    if user.role == "Admin": return code in ALL_PERMISSION_CODES
+    return code in user.permissions
+
+
+def require_permission(code: str):
+    if code not in ALL_PERMISSION_CODES: raise ValueError(f"Unknown permission: {code}")
+    def permission_dependency(current_user: User = Depends(get_current_active_user)) -> User:
+        if not has_permission(current_user, code):
+            raise HTTPException(status_code=403, detail=f"Missing permission: {code}")
+        return current_user
+    return permission_dependency
+
+
+def require_any_permission(*codes: str):
+    unknown = set(codes) - ALL_PERMISSION_CODES
+    if unknown: raise ValueError(f"Unknown permissions: {sorted(unknown)}")
+    def permission_dependency(current_user: User = Depends(get_current_active_user)) -> User:
+        if not any(has_permission(current_user, code) for code in codes):
+            raise HTTPException(status_code=403, detail=f"One of these permissions is required: {', '.join(codes)}")
+        return current_user
+    return permission_dependency

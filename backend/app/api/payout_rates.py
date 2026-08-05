@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
-from app.core.security import require_roles
+from app.core.security import require_permission
 from app.db.database import get_db
 from app.models.user import User
 from app.schemas.payout_rate import (BankRateBulkCreate, BankRateBulkResponse, BankRateCreate, BankRateResponse, BankRateUpdate,
@@ -10,7 +10,7 @@ from app.services.payout_rate_service import create_bank_rates_bulk, create_rate
 
 router = APIRouter(prefix="/billing/rates", tags=["billing rates"])
 bulk_router = APIRouter(prefix="/payout-rates", tags=["billing rates"])
-access = Depends(require_roles("Admin", "Manager"))
+access = Depends(require_permission("billing.rate_master"))
 
 
 @router.get("/bank", response_model=list[BankRateResponse])
@@ -38,7 +38,7 @@ def edit_bank_rate(rate_id: int, payload: BankRateUpdate, db: Session = Depends(
 
 
 @bulk_router.delete("/bank/{rate_id}", status_code=status.HTTP_204_NO_CONTENT)
-def remove_bank_rate(rate_id: int, db: Session = Depends(get_db), _: User = Depends(require_roles("Admin"))):
+def remove_bank_rate(rate_id: int, db: Session = Depends(get_db), _: User = access):
     delete_bank_rate(db, rate_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

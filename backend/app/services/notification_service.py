@@ -11,7 +11,7 @@ from app.services.dashboard_service import PENDING_CONDITION
 SEVERITY_ORDER = {"critical": 0, "warning": 1, "info": 2}
 
 
-def get_notifications(db: Session) -> list[NotificationResponse]:
+def get_notifications(db: Session, executive_scope: str | None = None) -> list[NotificationResponse]:
     now = datetime.now()
     today_start = datetime.combine(now.date(), time.min)
     tomorrow_start = today_start + timedelta(days=1)
@@ -30,6 +30,7 @@ def get_notifications(db: Session) -> list[NotificationResponse]:
             )
         )
     )
+    if executive_scope is not None: query = query.where(Case.executive == executive_scope)
     cases = db.scalars(query).all()
     notifications: list[NotificationResponse] = []
 

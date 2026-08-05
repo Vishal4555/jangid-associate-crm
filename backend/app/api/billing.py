@@ -3,9 +3,10 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.security import require_roles
+from app.core.security import require_permission
 from app.db.database import get_db
 from app.models.user import User
+from app.models.billing import Billing
 from app.schemas.billing import (BillingCreate, BillingResponse, BillingUpdate, BulkBillingRequest,
     BulkCreateRequest, BulkCreateResponse, BulkPreviewResponse)
 from app.schemas.monthly_billing import (MonthlyBillingResponse, PaymentRegisterResponse, PaymentRegisterUpdate,
@@ -18,8 +19,8 @@ from app.services.monthly_billing_service import (monthly_billing, save_payment_
 
 
 router = APIRouter(prefix="/billing", tags=["billing"])
-access = Depends(require_roles("Admin", "Manager"))
-admin_access = Depends(require_roles("Admin"))
+access = Depends(require_permission("billing.view"))
+payment_access = Depends(require_permission("billing.payment_register"))
 
 
 @router.get("/monthly", response_model=MonthlyBillingResponse)
@@ -41,7 +42,7 @@ def read_monthly_billing(
 def update_monthly_payment_register(
     payload: PaymentRegisterUpdate,
     db: Session = Depends(get_db),
-    user: User = access,
+    user: User = payment_access,
 ):
     return save_payment_register(db, payload, user)
 
@@ -52,29 +53,29 @@ def read_month_status(month: str, db: Session = Depends(get_db), _: User = acces
 
 
 @router.post("/month-finalize", response_model=MonthStatusResponse)
-def finalize_billing_month(payload: FinalizeMonthRequest, db: Session = Depends(get_db), user: User = admin_access):
+def finalize_billing_month(payload: FinalizeMonthRequest, db: Session = Depends(get_db), user: User = Depends(require_permission("billing.finalize"))):
     return finalize_month(db, payload.month, payload.notes, user)
 
 
 @router.post("/month-reopen", response_model=MonthStatusResponse)
-def reopen_billing_month(payload: ReopenMonthRequest, db: Session = Depends(get_db), user: User = admin_access):
+def reopen_billing_month(payload: ReopenMonthRequest, db: Session = Depends(get_db), user: User = Depends(require_permission("billing.reopen"))):
     return reopen_month(db, payload.month, payload.reason, user)
 
 
 @router.post("/month-regenerate", response_model=MonthStatusResponse)
-def regenerate_billing_month(payload: RegenerateMonthRequest, db: Session = Depends(get_db), user: User = admin_access):
+def regenerate_billing_month(payload: RegenerateMonthRequest, db: Session = Depends(get_db), user: User = Depends(require_permission("billing.regenerate"))):
     if not payload.confirm: raise HTTPException(status_code=422, detail="confirm must be true")
     return finalize_month(db, payload.month, None, user, regenerate=True)
 
 
 @router.post("/monthly/bank-payment", response_model=BankPaymentResponse)
-def update_bank_payment(payload: BankPaymentUpdate, db: Session = Depends(get_db), user: User = access):
+def update_bank_payment(payload: BankPaymentUpdate, db: Session = Depends(get_db), user: User = payment_access):
     return save_bank_payment(db, payload, user)
 
 
 @router.get("/dashboard", response_model=BillingDashboardResponse)
 def read_billing_dashboard(month: str, company: str | None = None, bank: str | None = None,
-    district: str | None = None, db: Session = Depends(get_db), _: User = access):
+    district: str | None = None, db: Session = Depends(get_db), _: User = Depends(require_permission("billing.dashboard"))):
     return billing_dashboard(db, month, company, bank, district)
 
 
@@ -117,3 +118,10 @@ def add_billing(payload: BillingCreate, db: Session = Depends(get_db), current_u
 @router.put("/{billing_id}", response_model=BillingResponse)
 def edit_billing(billing_id: int, payload: BillingUpdate, db: Session = Depends(get_db), current_user: User = access):
     return update_billing(db, billing_id, payload, current_user)
+
+
+@router.delete("/{billing_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_billing(billing_id: int, db: Session = Depends(get_db), _: User = Depends(require_permission("billing.delete"))):
+    row = db.get(Billing, billing_id)
+    if row is None: raise HTTPException(status_code=404, detail="Billing record not found")
+    db.delete(row); db.commit()

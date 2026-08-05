@@ -8,7 +8,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import func, select, text
+from sqlalchemy import exists, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -22,8 +22,9 @@ from app.api.follow_ups import router as follow_ups_router
 from app.api.masters import router as masters_router
 from app.api.notifications import router as notifications_router
 from app.api.users import router as users_router
+from app.api.permissions import router as permissions_router
 from app.api.case_visits import router as case_visits_router
-from app.core.security import get_current_active_user
+from app.core.security import get_current_active_user, has_permission, require_any_permission, require_permission
 from app.db.database import Base, engine, get_db
 from app.models.case import Case
 from app.models.case_visit import CaseVisit
@@ -125,6 +126,18 @@ def _normalized_identity(value: str | None) -> str:
 
 def _generated_case_no() -> str:
     return f"JA-{uuid4().hex[:12].upper()}"
+
+
+def _executive_name(user: User) -> str:
+    if user.role != "Executive" or user.executive is None:
+        raise HTTPException(status_code=403, detail="Executive account is not linked to an Executive Master record")
+    return user.executive.full_name
+
+
+def _case_visible_to(case_id: int, user: User):
+    if user.role != "Executive" or has_permission(user, "cases.view_all"): return True
+    name = _executive_name(user)
+    return or_(Case.executive == name, exists(select(CaseVisit.id).where(CaseVisit.case_id == case_id, CaseVisit.executive == name)))
 
 
 def _assert_parent_compatible(existing: Case, data: dict) -> None:
@@ -234,6 +247,7 @@ app.include_router(payout_rates_bulk_router)
 app.include_router(masters_router)
 app.include_router(dashboard_router)
 app.include_router(users_router)
+app.include_router(permissions_router)
 app.include_router(notifications_router)
 app.include_router(case_visits_router)
 app.include_router(auth_router, prefix="/api")
@@ -243,6 +257,7 @@ app.include_router(payout_rates_bulk_router, prefix="/api", include_in_schema=Fa
 app.include_router(masters_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
+app.include_router(permissions_router, prefix="/api")
 app.include_router(notifications_router, prefix="/api", include_in_schema=False)
 app.include_router(case_visits_router, prefix="/api", include_in_schema=False)
 app.include_router(follow_ups_router)
@@ -282,13 +297,14 @@ def db_test(_: User = Depends(get_current_active_user)):
 def get_cases(
     request: Request,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_permission("cases.view")),
 ):
     accepts_html = "text/html" in request.headers.get("accept", "")
     if FRONTEND_INDEX_FILE.exists() and accepts_html:
         return FileResponse(FRONTEND_INDEX_FILE)
 
     stmt = select(Case).order_by(Case.id.asc())
+    if current_user.role == "Executive": stmt = stmt.where(_case_visible_to(Case.id, current_user))
     return db.scalars(stmt).all()
 
 
@@ -297,9 +313,9 @@ def get_cases(
 def get_case(
     id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_permission("cases.view")),
 ):
-    case = db.get(Case, id)
+    case = db.scalar(select(Case).where(Case.id == id, _case_visible_to(Case.id, current_user)))
     if case is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -318,7 +334,7 @@ def get_case(
 def create_case(
     case: CaseCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_permission("cases.create")),
 ):
     case_data = case.model_dump()
     visit_type = case_data.pop("visit_type", "Residence")
@@ -403,9 +419,11 @@ def update_case(
     id: int,
     case_update: CaseUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_any_permission("cases.edit", "cases.edit_assigned")),
 ):
-    existing_case = db.get(Case, id)
+    if current_user.role == "Executive" and not has_permission(current_user, "cases.edit"):
+        raise HTTPException(status_code=403, detail="Executives can update only permitted fields on assigned visits")
+    existing_case = db.scalar(select(Case).where(Case.id == id, _case_visible_to(Case.id, current_user)))
     if existing_case is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -470,9 +488,9 @@ def update_case(
 def get_case_activity(
     id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_permission("cases.view")),
 ):
-    if db.get(Case, id) is None:
+    if db.scalar(select(Case.id).where(Case.id == id, _case_visible_to(Case.id, current_user))) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Case with id {id} not found",
@@ -491,7 +509,7 @@ def get_case_activity(
 def delete_case(
     id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_permission("cases.delete")),
 ):
     existing_case = db.get(Case, id)
     if existing_case is None:

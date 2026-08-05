@@ -43,12 +43,12 @@ export function PublicRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-export function RoleRoute({
+export function PermissionRoute({
   children,
-  allowedRoles,
+  permissions,
 }: {
   children: ReactNode;
-  allowedRoles: Array<"Admin" | "Manager" | "Executive">;
+  permissions: string[];
 }) {
   const { currentUser, isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
@@ -61,8 +61,11 @@ export function RoleRoute({
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  if (!currentUser || !allowedRoles.includes(currentUser.role)) {
-    return <Navigate to="/dashboard" replace />;
+  if (!currentUser || !permissions.some((code)=>currentUser.permissions.includes(code))) {
+    const destinations:[string,string][]=[["dashboard.view","/dashboard"],["cases.view","/cases"],["search.view","/search"],["reports.view","/reports"],["reports.view_own","/reports"],["users.view","/users"],["masters.view","/masters"],["billing.view","/billing"],["settings.view","/settings"]] as [string,string][];
+    const destination=destinations.find(([code])=>currentUser?.permissions.includes(code))?.[1];
+    if (!destination || destination===location.pathname) return <div className="grid min-h-screen place-items-center bg-slate-950 p-6 text-center text-white"><div><h1 className="text-xl font-semibold">Access denied</h1><p className="mt-2 text-sm text-slate-300">Your account does not have permission to open this page.</p></div></div>;
+    return <Navigate to={destination} replace />;
   }
 
   return <>{children}</>;

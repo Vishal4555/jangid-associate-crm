@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
-import { ProtectedRoute, PublicRoute, RoleRoute } from "../components/auth/RouteGuards";
+import { PermissionRoute, PublicRoute } from "../components/auth/RouteGuards";
 const LoginPage = lazy(() => import("../pages/Login/LoginPage"));
 const DashboardPage = lazy(() => import("../pages/Dashboard/DashboardPage"));
 const CasesPage = lazy(() => import("../pages/Cases/CasesPage"));
@@ -58,41 +58,41 @@ export default function AppRoutes() {
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute>
+            <PermissionRoute permissions={["dashboard.view"]}>
               <DashboardPage />
-            </ProtectedRoute>
+            </PermissionRoute>
           }
         />
 
         <Route
           path="/cases"
           element={
-            <ProtectedRoute>
+            <PermissionRoute permissions={["cases.view"]}>
               <CasesPage />
-            </ProtectedRoute>
+            </PermissionRoute>
           }
         />
 
         <Route
           path="/masters"
           element={
-            <RoleRoute allowedRoles={["Admin", "Manager"]}>
+            <PermissionRoute permissions={["masters.view"]}>
               <MastersPage />
-            </RoleRoute>
+            </PermissionRoute>
           }
         />
 
-        <Route path="/search" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
-        <Route path="/masters/companies" element={<RoleRoute allowedRoles={["Admin", "Manager"]}><CompanyMasterPage /></RoleRoute>} />
-        <Route path="/reports" element={<RoleRoute allowedRoles={["Admin", "Manager"]}><ReportsPage /></RoleRoute>} />
-        <Route path="/billing" element={<RoleRoute allowedRoles={["Admin", "Manager"]}><BillingPage /></RoleRoute>} />
-        <Route path="/billing/payment-register" element={<RoleRoute allowedRoles={["Admin", "Manager"]}><BillingPage /></RoleRoute>} />
-        <Route path="/billing/executive-rates" element={<RoleRoute allowedRoles={["Admin", "Manager"]}><RateMastersPage /></RoleRoute>} />
-        <Route path="/billing/bank-rates" element={<RoleRoute allowedRoles={["Admin", "Manager"]}><RateMastersPage /></RoleRoute>} />
-        <Route path="/billing/dashboard" element={<RoleRoute allowedRoles={["Admin", "Manager"]}><BillingDashboardPage /></RoleRoute>} />
+        <Route path="/search" element={<PermissionRoute permissions={["search.view"]}><SearchPage /></PermissionRoute>} />
+        <Route path="/masters/companies" element={<PermissionRoute permissions={["masters.view"]}><CompanyMasterPage /></PermissionRoute>} />
+        <Route path="/reports" element={<PermissionRoute permissions={["reports.view","reports.view_own"]}><ReportsPage /></PermissionRoute>} />
+        <Route path="/billing" element={<PermissionRoute permissions={["billing.view"]}><BillingPage /></PermissionRoute>} />
+        <Route path="/billing/payment-register" element={<PermissionRoute permissions={["billing.payment_register"]}><BillingPage /></PermissionRoute>} />
+        <Route path="/billing/executive-rates" element={<PermissionRoute permissions={["billing.rate_master"]}><RateMastersPage /></PermissionRoute>} />
+        <Route path="/billing/bank-rates" element={<PermissionRoute permissions={["billing.rate_master"]}><RateMastersPage /></PermissionRoute>} />
+        <Route path="/billing/dashboard" element={<PermissionRoute permissions={["billing.dashboard"]}><BillingDashboardPage /></PermissionRoute>} />
         <Route path="/billing/rates" element={<Navigate to="/billing/executive-rates" replace />} />
-        <Route path="/users" element={<RoleRoute allowedRoles={["Admin"]}><UsersPage /></RoleRoute>} />
-        <Route path="/settings" element={<RoleRoute allowedRoles={["Admin", "Manager"]}><SettingsPage /></RoleRoute>} />
+        <Route path="/users" element={<PermissionRoute permissions={["users.view"]}><UsersPage /></PermissionRoute>} />
+        <Route path="/settings" element={<PermissionRoute permissions={["settings.view"]}><SettingsPage /></PermissionRoute>} />
 
         <Route
           path="*"
