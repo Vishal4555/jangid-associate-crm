@@ -2,12 +2,13 @@ import logging
 from datetime import date, datetime
 from pathlib import Path
 import os
+from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -116,6 +117,28 @@ def _validate_case_dimensions(db: Session, data: dict) -> None:
         bank = db.scalar(select(Bank).where(Bank.name == data["bank"]))
         if bank is None:
             raise HTTPException(status_code=422, detail="Bank not found")
+
+
+def _normalized_identity(value: str | None) -> str:
+    return " ".join((value or "").strip().casefold().split())
+
+
+def _generated_case_no() -> str:
+    return f"JA-{uuid4().hex[:12].upper()}"
+
+
+def _assert_parent_compatible(existing: Case, data: dict) -> None:
+    checks = (
+        ("Company", existing.company, data.get("company")),
+        ("Bank / Finance Company", existing.bank, data.get("bank")),
+        ("Applicant", existing.applicant, data.get("applicant")),
+    )
+    for label, old, new in checks:
+        if _normalized_identity(old) != _normalized_identity(new):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"LOS / Application No already exists with a different {label}.",
+            )
 
 app = FastAPI(
     title="JANGID ASSOCIATE CRM",
@@ -299,53 +322,68 @@ def create_case(
 ):
     case_data = case.model_dump()
     visit_type = case_data.pop("visit_type", "Residence")
+    # case_no supplied by older clients is deliberately ignored for this workflow.
+    case_data.pop("case_no", None)
+    case_data["los_no"] = (case_data.get("los_no") or "").strip()
+    if not case_data["los_no"]:
+        raise HTTPException(status_code=422, detail="LOS / Application No is required")
     _validate_case_dimensions(db, case_data)
     if case_data.get("status") in {"Positive", "Negative"}:
         case_data["closed_date"] = date.today()
-    new_case = Case(**case_data)
 
     try:
-        db.add(new_case)
-        db.flush()
+        matches = db.scalars(select(Case).where(
+            func.lower(func.trim(Case.los_no)) == case_data["los_no"].casefold()
+        ).with_for_update()).all()
+        if len(matches) > 1:
+            raise HTTPException(status_code=409, detail="Multiple parent cases already use this LOS / Application No; resolve the data before adding a visit.")
+        if matches:
+            new_case = matches[0]
+            _assert_parent_compatible(new_case, case_data)
+            result_message = "New visit added to existing application."
+        else:
+            parent_fields = {key: value for key, value in case_data.items() if key in Case.__table__.columns.keys()}
+            new_case = Case(case_no=_generated_case_no(), **parent_fields)
+            db.add(new_case)
+            db.flush()
+            db.add(_case_activity(new_case.id, "CASE_CREATED", current_user))
+            db.add_all(
+                _case_activity(new_case.id, "FIELD_UPDATED", current_user, field_name=field, new_value=value)
+                for field in INITIAL_ACTIVITY_FIELDS
+                if (value := getattr(new_case, field)) is not None
+                and (not isinstance(value, str) or value.strip())
+            )
+            result_message = "New application and first visit created."
         first_visit = CaseVisit(
             case_id=new_case.id,
             visit_type=visit_type,
-            address=new_case.address,
-            district_id=new_case.district_id,
-            district=new_case.district,
-            city=new_case.city,
-            landmark=new_case.landmark,
-            executive=new_case.executive,
-            status=new_case.status or "Pending",
-            negative_reason=new_case.negative_reason,
-            receive_date=new_case.receive_date,
-            closed_date=new_case.closed_date,
-            remarks=new_case.remarks,
-            next_follow_up_at=new_case.next_follow_up_at,
-            follow_up_note=new_case.follow_up_note,
+            address=case_data.get("address"),
+            district_id=case_data.get("district_id"),
+            district=case_data.get("district"),
+            city=case_data.get("city"),
+            landmark=case_data.get("landmark"),
+            executive=case_data.get("executive"),
+            status=case_data.get("status") or "Pending",
+            negative_reason=case_data.get("negative_reason"),
+            receive_date=case_data.get("receive_date"),
+            closed_date=case_data.get("closed_date"),
+            remarks=case_data.get("remarks"),
+            next_follow_up_at=case_data.get("next_follow_up_at"),
+            follow_up_note=case_data.get("follow_up_note"),
             created_by_user_id=current_user.id,
             updated_by_user_id=current_user.id,
         )
         db.add(first_visit)
         db.flush()
-        db.add(_case_activity(new_case.id, "CASE_CREATED", current_user))
         db.add(CaseActivity(case_id=new_case.id, activity_type="VISIT_CREATED",
             performed_by_user_id=current_user.id, performed_by_name=current_user.full_name,
             remarks=f"Visit #{first_visit.id} ({first_visit.visit_type})"))
-        db.add_all(
-            _case_activity(
-                new_case.id,
-                "FIELD_UPDATED",
-                current_user,
-                field_name=field,
-                new_value=value,
-            )
-            for field in INITIAL_ACTIVITY_FIELDS
-            if (value := getattr(new_case, field)) is not None
-            and (not isinstance(value, str) or value.strip())
-        )
         db.commit()
         db.refresh(new_case)
+        new_case.message = result_message
+    except HTTPException:
+        db.rollback()
+        raise
     except IntegrityError:
         db.rollback()
         raise HTTPException(

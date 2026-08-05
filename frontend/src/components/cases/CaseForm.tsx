@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   FieldErrors,
   UseFormRegister,
@@ -7,7 +7,7 @@ import type {
 } from "react-hook-form";
 
 import { listMasters } from "../../services/masterService";
-import type { Bank, Branch, Company, District, Executive, LoanType, ProductType } from "../../types/master";
+import type { Bank, Company, District, Executive, LoanType } from "../../types/master";
 import type { CaseFormData } from "./caseSchema";
 
 type Props = {
@@ -21,15 +21,12 @@ export default function CaseForm({ register, errors, watch, setValue }: Props) {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
-  const [branches, setBranches] = useState<Branch[]>([]);
   const [executives, setExecutives] = useState<Executive[]>([]);
   const [loanTypes, setLoanTypes] = useState<LoanType[]>([]);
-  const [productTypes, setProductTypes] = useState<ProductType[]>([]);
   const [loadingMasters, setLoadingMasters] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const selectedBank = watch("bank");
-  const selectedBranch = watch("branch");
 
   useEffect(() => {
     let cancelled = false;
@@ -38,23 +35,19 @@ export default function CaseForm({ register, errors, watch, setValue }: Props) {
       setLoadingMasters(true);
 
       try {
-        const [bankResponse, branchResponse, executiveResponse, loanTypeResponse, productTypeResponse, companyResponse, districtResponse] =
+        const [bankResponse, executiveResponse, loanTypeResponse, companyResponse, districtResponse] =
           await Promise.all([
             listMasters("banks", { all: true }),
-            listMasters("branches", { all: true }),
             listMasters("executives", { all: true, activeOnly: true }),
             listMasters("loan-types", { all: true }),
-            listMasters("product-types", { all: true }),
             listMasters("companies", { all: true, activeOnly: true }),
             listMasters("districts", { all: true, activeOnly: true }),
           ]);
 
         if (!cancelled) {
           setBanks(Array.isArray(bankResponse?.items) ? bankResponse.items : []);
-          setBranches(Array.isArray(branchResponse?.items) ? branchResponse.items : []);
           setExecutives(Array.isArray(executiveResponse?.items) ? executiveResponse.items : []);
           setLoanTypes(Array.isArray(loanTypeResponse?.items) ? loanTypeResponse.items : []);
-          setProductTypes(Array.isArray(productTypeResponse?.items) ? productTypeResponse.items : []);
           setCompanies(companyResponse.items);
           setDistricts(districtResponse.items);
           setLoadError(null);
@@ -81,34 +74,13 @@ export default function CaseForm({ register, errors, watch, setValue }: Props) {
     };
   }, []);
 
-  const branchOptions = useMemo(() => {
-    if (!selectedBank) {
-      return branches;
-    }
-
-    return branches.filter((branch) => branch.bank_name === selectedBank);
-  }, [branches, selectedBank]);
-
   const bankOptions = banks;
 
   useEffect(() => {
     if (selectedBank && !bankOptions.some(bank => bank.name === selectedBank)) {
       setValue("bank", "");
-      setValue("branch", "");
     }
   }, [bankOptions, selectedBank, setValue]);
-
-  useEffect(() => {
-    if (!selectedBranch) {
-      return;
-    }
-
-    const branchStillValid = branchOptions.some((branch) => branch.name === selectedBranch);
-
-    if (!branchStillValid) {
-      setValue("branch", "");
-    }
-  }, [branchOptions, selectedBranch, setValue]);
 
   return (
     <div className="space-y-6">
@@ -131,14 +103,6 @@ export default function CaseForm({ register, errors, watch, setValue }: Props) {
             {(["Residence", "Office", "Permanent", "Business", "Other"] as const).map(value => <option key={value}>{value}</option>)}
           </select>
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Case No</label>
-
-          <input {...register("case_no")} className="w-full rounded-lg border px-3 py-2" />
-
-          {errors.case_no && <p className="mt-1 text-sm text-red-500">{errors.case_no.message}</p>}
-        </div>
-
         <div>
           <label className="mb-1 block text-sm font-medium">LOS / Application No</label>
           <input {...register("los_no")} maxLength={100} className="w-full rounded-lg border px-3 py-2" />
@@ -181,23 +145,6 @@ export default function CaseForm({ register, errors, watch, setValue }: Props) {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">Branch</label>
-
-          <select
-            {...register("branch")}
-            className="w-full rounded-lg border bg-white px-3 py-2"
-            disabled={loadingMasters}
-          >
-            <option value="">Select branch</option>
-            {branchOptions.map((branch) => (
-              <option key={branch.id} value={branch.name}>
-                {branch.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
           <label className="mb-1 block text-sm font-medium">Applicant</label>
 
           <input {...register("applicant")} className="w-full rounded-lg border px-3 py-2" />
@@ -225,23 +172,6 @@ export default function CaseForm({ register, errors, watch, setValue }: Props) {
             {loanTypes.map((loanType) => (
               <option key={loanType.id} value={loanType.name}>
                 {loanType.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium">Product Type</label>
-
-          <select
-            {...register("product_type")}
-            className="w-full rounded-lg border bg-white px-3 py-2"
-            disabled={loadingMasters}
-          >
-            <option value="">Select product type</option>
-            {productTypes.map((productType) => (
-              <option key={productType.id} value={productType.name}>
-                {productType.name}
               </option>
             ))}
           </select>
@@ -312,25 +242,6 @@ export default function CaseForm({ register, errors, watch, setValue }: Props) {
           <textarea rows={4} {...register("remarks")} className="w-full rounded-lg border px-3 py-2" />
         </div>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium">Next Follow-up Date &amp; Time</label>
-
-          <input
-            type="datetime-local"
-            {...register("next_follow_up_at")}
-            className="w-full rounded-lg border px-3 py-2"
-          />
-        </div>
-
-        <div className="md:col-span-2">
-          <label className="mb-1 block text-sm font-medium">Follow-up Note</label>
-
-          <textarea
-            rows={3}
-            {...register("follow_up_note")}
-            className="w-full rounded-lg border px-3 py-2"
-          />
-        </div>
       </div>
     </div>
   );

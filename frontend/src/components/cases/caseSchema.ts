@@ -2,9 +2,7 @@ import { z } from "zod";
 
 export const caseSchema = z.object({
   visit_type: z.enum(["Residence", "Office", "Permanent", "Business", "Other"]),
-  case_no: z.string().min(1, "Case No is required"),
-
-  los_no: z.string().max(100, "LOS No must be 100 characters or fewer").optional(),
+  los_no: z.string().trim().min(1, "LOS / Application No is required").max(100, "LOS No must be 100 characters or fewer"),
 
   receive_date: z.string().optional(),
 
@@ -14,11 +12,7 @@ export const caseSchema = z.object({
   district_id: z.number().int().positive().optional(),
   district: z.string().optional(),
 
-  branch: z.string().optional(),
-
   applicant: z.string().min(1, "Applicant name is required"),
-
-  product_type: z.string().optional(),
 
   loan_type: z.string().optional(),
 
@@ -47,9 +41,6 @@ export const caseSchema = z.object({
 
   remarks: z.string().optional(),
 
-  next_follow_up_at: z.string().optional(),
-
-  follow_up_note: z.string().optional(),
 });
 
 export type CaseFormData = z.infer<typeof caseSchema>;

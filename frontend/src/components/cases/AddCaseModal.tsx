@@ -19,7 +19,6 @@ type Props = {
 
 const defaultValues: CaseFormData = {
   visit_type: "Residence",
-  case_no: "",
   los_no: "",
   receive_date: "",
   bank: "",
@@ -27,9 +26,7 @@ const defaultValues: CaseFormData = {
   company: "",
   district_id: undefined,
   district: "",
-  branch: "",
   applicant: "",
-  product_type: "",
   loan_type: "",
   address: "",
   city: "",
@@ -39,8 +36,6 @@ const defaultValues: CaseFormData = {
   negative_reason: "",
   landmark: "",
   remarks: "",
-  next_follow_up_at: "",
-  follow_up_note: "",
 };
 
 export default function AddCaseModal({

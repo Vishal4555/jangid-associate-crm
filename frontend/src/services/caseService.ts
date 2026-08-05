@@ -72,7 +72,7 @@ function cleanPayload(payload: CaseFormPayload): CaseFormPayload {
   const entries = Object.entries(payload).map(([key, value]) => {
     if (typeof value === "string") {
       const trimmed = value.trim();
-      if (key === "next_follow_up_at" || key === "follow_up_note" || key === "los_no") {
+      if (key === "los_no") {
         return [key, trimmed === "" ? null : trimmed];
       }
       return [key, trimmed === "" ? undefined : trimmed];

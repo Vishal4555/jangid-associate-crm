@@ -20,7 +20,6 @@ type Props = {
 
 const defaultValues: CaseFormData = {
 	visit_type: "Residence",
-	case_no: "",
 	los_no: "",
 	receive_date: "",
 	bank: "",
@@ -28,9 +27,7 @@ const defaultValues: CaseFormData = {
 	company: "",
 	district_id: undefined,
 	district: "",
-	branch: "",
 	applicant: "",
-	product_type: "",
 	loan_type: "",
 	address: "",
 	city: "",
@@ -40,14 +37,11 @@ const defaultValues: CaseFormData = {
 	negative_reason: "",
 	landmark: "",
 	remarks: "",
-	next_follow_up_at: "",
-	follow_up_note: "",
 };
 
 function toFormValues(item: Case): CaseFormData {
 	return {
 		visit_type: "Residence",
-		case_no: item.case_no,
 		los_no: item.los_no,
 		receive_date: item.receive_date,
 		bank: item.bank,
@@ -55,9 +49,7 @@ function toFormValues(item: Case): CaseFormData {
 		company: item.company,
 		district_id: item.district_id ?? undefined,
 		district: item.district,
-		branch: item.branch,
 		applicant: item.applicant,
-		product_type: item.product_type,
 		loan_type: item.loan_type,
 		address: item.address,
 		city: item.city,
@@ -67,8 +59,6 @@ function toFormValues(item: Case): CaseFormData {
 		negative_reason: item.negative_reason,
 		landmark: item.landmark,
 		remarks: item.remarks,
-		next_follow_up_at: item.next_follow_up_at.slice(0, 16),
-		follow_up_note: item.follow_up_note,
 	};
 }
 

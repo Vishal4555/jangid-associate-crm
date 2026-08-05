@@ -1,0 +1,67 @@
+import os
+import unittest
+
+os.environ.setdefault("DATABASE_URL", "sqlite://")
+
+from fastapi import HTTPException
+from sqlalchemy import create_engine, func, select
+from sqlalchemy.orm import Session
+from sqlalchemy.pool import StaticPool
+
+import app.db.base
+from app.db.database import Base
+from app.main import create_case
+from app.models.case import Case
+from app.models.case_visit import CaseVisit
+from app.models.master import Bank, Company
+from app.models.user import User
+from app.schemas.case import CaseCreate
+
+
+class CaseCreateLosFlowTests(unittest.TestCase):
+    def setUp(self):
+        self.engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        Base.metadata.create_all(self.engine); self.db = Session(self.engine)
+        self.company = Company(name="Jangid Agency", is_active=True)
+        self.other_company = Company(name="Other Agency", is_active=True)
+        self.bank = Bank(name="AU Bank"); self.other_bank = Bank(name="HDFC")
+        self.user = User(full_name="Admin", username="los-admin", email="los@test.local", password_hash="x", role="Admin")
+        self.db.add_all([self.company, self.other_company, self.bank, self.other_bank, self.user]); self.db.commit()
+
+    def tearDown(self):
+        self.db.close(); Base.metadata.drop_all(self.engine); self.engine.dispose()
+
+    def payload(self, **changes):
+        values = dict(los_no=" LOS-100 ", company_id=self.company.id, bank=self.bank.name,
+            applicant="Ravi Kumar", visit_type="Residence", status="Pending")
+        values.update(changes); return CaseCreate(**values)
+
+    def test_new_then_existing_los_creates_one_parent_and_two_visits(self):
+        first = create_case(self.payload(case_no="USER-SUPPLIED"), self.db, self.user)
+        second = create_case(self.payload(los_no="los-100", visit_type="Office", address="Office address"), self.db, self.user)
+        self.assertRegex(first.case_no, r"^JA-[0-9A-F]{12}$")
+        self.assertNotEqual(first.case_no, "USER-SUPPLIED")
+        self.assertEqual(first.id, second.id)
+        self.assertEqual(second.message, "New visit added to existing application.")
+        self.assertEqual(self.db.scalar(select(func.count(Case.id))), 1)
+        self.assertEqual(self.db.scalar(select(func.count(CaseVisit.id))), 2)
+
+    def test_existing_los_rejects_incompatible_company_and_bank(self):
+        create_case(self.payload(), self.db, self.user)
+        with self.assertRaises(HTTPException) as company_error:
+            create_case(self.payload(company_id=self.other_company.id), self.db, self.user)
+        self.assertEqual(company_error.exception.status_code, 409)
+        self.assertIn("Company", company_error.exception.detail)
+        with self.assertRaises(HTTPException) as bank_error:
+            create_case(self.payload(bank=self.other_bank.name), self.db, self.user)
+        self.assertEqual(bank_error.exception.status_code, 409)
+        self.assertIn("Bank", bank_error.exception.detail)
+        self.assertEqual(self.db.scalar(select(func.count(CaseVisit.id))), 1)
+
+    def test_blank_los_is_invalid(self):
+        with self.assertRaises(HTTPException) as error:
+            create_case(self.payload(los_no="  "), self.db, self.user)
+        self.assertEqual(error.exception.status_code, 422)
+
+
+if __name__ == "__main__": unittest.main()

@@ -55,7 +55,6 @@ export interface Case {
 export type CaseStatusFilter = "All" | CaseStatus;
 
 export interface CaseFormPayload {
-  case_no: string;
   visit_type?: VisitType;
   los_no?: string | null;
   receive_date?: string;
@@ -64,10 +63,8 @@ export interface CaseFormPayload {
   company?: string;
   district_id?: number | null;
   district?: string;
-  branch?: string;
   loan_type?: string;
   applicant?: string;
-  product_type?: string;
   address?: string;
   city?: string;
   mobile?: string;
@@ -76,8 +73,6 @@ export interface CaseFormPayload {
   negative_reason?: string;
   landmark?: string;
   remarks?: string;
-  next_follow_up_at?: string | null;
-  follow_up_note?: string | null;
 }
 
 export interface DeleteCaseResponse {

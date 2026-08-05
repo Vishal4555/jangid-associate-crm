@@ -29,7 +29,8 @@ class CaseBase(BaseModel):
 
 
 class CaseCreate(CaseBase):
-    case_no: str
+    case_no: Optional[str] = None
+    los_no: str
     visit_type: Literal["Residence", "Office", "Permanent", "Business", "Other"] = "Residence"
 
 
@@ -42,6 +43,7 @@ class CaseResponse(CaseBase):
     id: int
     case_no: str
     closed_date: Optional[date] = None
+    message: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
