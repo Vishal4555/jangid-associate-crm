@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -30,6 +30,7 @@ class CaseBase(BaseModel):
 
 class CaseCreate(CaseBase):
     case_no: str
+    visit_type: Literal["Residence", "Office", "Permanent", "Business", "Other"] = "Residence"
 
 
 class CaseUpdate(CaseBase):

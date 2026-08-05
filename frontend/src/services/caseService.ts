@@ -5,6 +5,8 @@ import type {
   CaseActivity,
   CaseFormPayload,
   DeleteCaseResponse,
+  CaseVisit,
+  CaseVisitPayload,
 } from "../types/case";
 
 export type CaseApiResponse = {
@@ -115,6 +117,23 @@ export const getCaseById = async (id: number): Promise<Case> => {
   } catch (error) {
     throw toErrorMessage(error);
   }
+};
+
+export const getCaseVisits = async (caseId: number): Promise<CaseVisit[]> => {
+  try { const response = await API.get<CaseVisit[]>(`/cases/${caseId}/visits`); return response.data; }
+  catch (error) { throw toErrorMessage(error); }
+};
+export const createCaseVisit = async (caseId: number, data: CaseVisitPayload): Promise<CaseVisit> => {
+  try { const response = await API.post<CaseVisit>(`/cases/${caseId}/visits`, data); emitCasesChanged(); return response.data; }
+  catch (error) { throw toErrorMessage(error); }
+};
+export const updateCaseVisit = async (caseId: number, visitId: number, data: Partial<CaseVisitPayload>): Promise<CaseVisit> => {
+  try { const response = await API.put<CaseVisit>(`/cases/${caseId}/visits/${visitId}`, data); emitCasesChanged(); return response.data; }
+  catch (error) { throw toErrorMessage(error); }
+};
+export const deleteCaseVisit = async (caseId: number, visitId: number): Promise<void> => {
+  try { await API.delete(`/cases/${caseId}/visits/${visitId}`); emitCasesChanged(); }
+  catch (error) { throw toErrorMessage(error); }
 };
 
 export const getCaseActivity = async (id: number): Promise<CaseActivity[]> => {

@@ -21,9 +21,11 @@ from app.api.follow_ups import router as follow_ups_router
 from app.api.masters import router as masters_router
 from app.api.notifications import router as notifications_router
 from app.api.users import router as users_router
+from app.api.case_visits import router as case_visits_router
 from app.core.security import get_current_active_user
 from app.db.database import Base, engine, get_db
 from app.models.case import Case
+from app.models.case_visit import CaseVisit
 from app.models.case_activity import CaseActivity
 from app.models.master import Company, District, Bank
 from app.models.user import User
@@ -210,6 +212,7 @@ app.include_router(masters_router)
 app.include_router(dashboard_router)
 app.include_router(users_router)
 app.include_router(notifications_router)
+app.include_router(case_visits_router)
 app.include_router(auth_router, prefix="/api")
 app.include_router(billing_router, prefix="/api", include_in_schema=False)
 app.include_router(payout_rates_router, prefix="/api", include_in_schema=False)
@@ -218,6 +221,7 @@ app.include_router(masters_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(notifications_router, prefix="/api", include_in_schema=False)
+app.include_router(case_visits_router, prefix="/api", include_in_schema=False)
 app.include_router(follow_ups_router)
 app.include_router(follow_ups_router, prefix="/api", include_in_schema=False)
 
@@ -294,6 +298,7 @@ def create_case(
     current_user: User = Depends(get_current_active_user),
 ):
     case_data = case.model_dump()
+    visit_type = case_data.pop("visit_type", "Residence")
     _validate_case_dimensions(db, case_data)
     if case_data.get("status") in {"Positive", "Negative"}:
         case_data["closed_date"] = date.today()
@@ -302,7 +307,31 @@ def create_case(
     try:
         db.add(new_case)
         db.flush()
+        first_visit = CaseVisit(
+            case_id=new_case.id,
+            visit_type=visit_type,
+            address=new_case.address,
+            district_id=new_case.district_id,
+            district=new_case.district,
+            city=new_case.city,
+            landmark=new_case.landmark,
+            executive=new_case.executive,
+            status=new_case.status or "Pending",
+            negative_reason=new_case.negative_reason,
+            receive_date=new_case.receive_date,
+            closed_date=new_case.closed_date,
+            remarks=new_case.remarks,
+            next_follow_up_at=new_case.next_follow_up_at,
+            follow_up_note=new_case.follow_up_note,
+            created_by_user_id=current_user.id,
+            updated_by_user_id=current_user.id,
+        )
+        db.add(first_visit)
+        db.flush()
         db.add(_case_activity(new_case.id, "CASE_CREATED", current_user))
+        db.add(CaseActivity(case_id=new_case.id, activity_type="VISIT_CREATED",
+            performed_by_user_id=current_user.id, performed_by_name=current_user.full_name,
+            remarks=f"Visit #{first_visit.id} ({first_visit.visit_type})"))
         db.add_all(
             _case_activity(
                 new_case.id,

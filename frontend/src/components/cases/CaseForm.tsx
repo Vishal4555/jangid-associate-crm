@@ -126,6 +126,12 @@ export default function CaseForm({ register, errors, watch, setValue }: Props) {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
+          <label className="mb-1 block text-sm font-medium">Visit Type</label>
+          <select {...register("visit_type")} className="w-full rounded-lg border bg-white px-3 py-2">
+            {(["Residence", "Office", "Permanent", "Business", "Other"] as const).map(value => <option key={value}>{value}</option>)}
+          </select>
+        </div>
+        <div>
           <label className="mb-1 block text-sm font-medium">Case No</label>
 
           <input {...register("case_no")} className="w-full rounded-lg border px-3 py-2" />

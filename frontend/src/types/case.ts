@@ -1,4 +1,16 @@
 export type CaseStatus = "Pending" | "Positive" | "Negative";
+export type VisitType = "Residence" | "Office" | "Permanent" | "Business" | "Other";
+
+export interface CaseVisit {
+  id: number; case_id: number; visit_type: VisitType; address: string | null;
+  district_id: number | null; district: string | null; city: string | null;
+  landmark: string | null; executive: string | null; status: CaseStatus;
+  negative_reason: string | null; receive_date: string | null; closed_date: string | null;
+  remarks: string | null; next_follow_up_at: string | null; follow_up_note: string | null;
+  tat_days: number | null; created_at: string; updated_at: string;
+}
+
+export type CaseVisitPayload = Omit<CaseVisit, "id" | "case_id" | "closed_date" | "tat_days" | "created_at" | "updated_at">;
 
 export interface Case {
   id: number;
@@ -44,6 +56,7 @@ export type CaseStatusFilter = "All" | CaseStatus;
 
 export interface CaseFormPayload {
   case_no: string;
+  visit_type?: VisitType;
   los_no?: string | null;
   receive_date?: string;
   bank?: string;

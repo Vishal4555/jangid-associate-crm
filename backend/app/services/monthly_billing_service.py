@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.case import Case
+from app.models.case_visit import CaseVisit
 from app.models.master import District, Executive
 from app.models.payout_rate import BankPayoutRate, ExecutivePayoutRate
 from app.models.user import User
@@ -87,13 +88,40 @@ def resolve_monthly_bank_rate(db: Session, case_item: Case) -> RateMatch:
     return RateMatch("MATCHED", rows[0].id, rows[0].payout_rate)
 
 
+class VisitBillingItem:
+    """Case identity/commercial fields combined with one visit's operational fields."""
+    def __init__(self, case: Case, visit: CaseVisit):
+        for field in ("id", "case_no", "los_no", "bank", "company_id", "company", "loan_type", "product_type", "applicant", "mobile"):
+            setattr(self, field, getattr(case, field))
+        self.case_id = case.id
+        self.visit_id = visit.id
+        self.visit_type = visit.visit_type
+        for field in ("receive_date", "closed_date", "district_id", "district", "city", "address", "executive", "status", "remarks"):
+            setattr(self, field, getattr(visit, field))
+
+
 def _eligible_cases(db: Session, month: str, executive=None, bank=None, city=None, case_status=None, company=None, district=None):
     start, end = month_bounds(month)
-    query = select(Case).where(Case.receive_date.between(start, end), func.lower(func.trim(Case.status)).in_(("positive", "negative")))
-    for column, value in ((Case.executive, executive), (Case.company, company), (Case.bank, bank), (Case.district, district), (Case.city, city), (Case.status, case_status)):
+    query = select(Case, CaseVisit).join(CaseVisit, CaseVisit.case_id == Case.id).where(
+        CaseVisit.receive_date.between(start, end),
+        func.lower(func.trim(CaseVisit.status)).in_(("positive", "negative")))
+    for column, value in ((CaseVisit.executive, executive), (Case.company, company), (Case.bank, bank), (CaseVisit.district, district), (CaseVisit.city, city), (CaseVisit.status, case_status)):
         if value:
             query = query.where(func.lower(func.trim(column)) == normalized(value))
-    return db.scalars(query.order_by(Case.receive_date, Case.id)).all()
+    rows = db.execute(query.order_by(CaseVisit.receive_date, Case.id, CaseVisit.id)).all()
+    items = [VisitBillingItem(case, visit) for case, visit in rows]
+    # Transitional compatibility: cases are billed from legacy fields only until
+    # their migration-created visit exists. A parent with any visit is never counted.
+    legacy = select(Case).where(
+        ~select(CaseVisit.id).where(CaseVisit.case_id == Case.id).exists(),
+        Case.receive_date.between(start, end),
+        func.lower(func.trim(Case.status)).in_(("positive", "negative")),
+    )
+    for column, value in ((Case.executive, executive), (Case.company, company), (Case.bank, bank), (Case.district, district), (Case.city, city), (Case.status, case_status)):
+        if value:
+            legacy = legacy.where(func.lower(func.trim(column)) == normalized(value))
+    items.extend(db.scalars(legacy.order_by(Case.receive_date, Case.id)).all())
+    return items
 
 
 def _derived_status(paid: Decimal, net: Decimal, finalized: bool = False) -> str:
@@ -159,7 +187,7 @@ def monthly_billing(db: Session, month: str, executive=None, bank=None, city=Non
         match = resolve_monthly_bank_rate(db, item)
         missing_bank += match.status == "MISSING"
         ambiguous += match.status == "AMBIGUOUS"
-        bank_rows.append(BankMonthlyRow(case_id=item.id, date=item.receive_date, company=item.company, bank=item.bank, los_no=item.los_no,
+        bank_rows.append(BankMonthlyRow(case_id=getattr(item, "case_id", item.id), visit_id=getattr(item, "visit_id", None), visit_type=getattr(item, "visit_type", None), date=item.receive_date, company=item.company, bank=item.bank, los_no=item.los_no,
             name=item.applicant, address=item.address, district=item.district, city=item.city, mobile=item.mobile, status=item.status,
             remark=item.remarks, rate=match.amount, rate_status=match.status))
 

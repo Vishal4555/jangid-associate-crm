@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 import app.db.base  # noqa: F401
 from app.db.database import Base
 from app.models.case import Case
+from app.models.case_visit import CaseVisit
 from app.models.master import Bank, Executive
 from app.models.payout_rate import BankPayoutRate, ExecutivePayoutRate
 from app.models.user import User
@@ -64,6 +65,24 @@ class MonthlyBillingTests(unittest.TestCase):
         report = monthly_billing(self.db, "2026-06")
         self.assertEqual(len(report.bank_billing), 1)
         self.assertEqual((report.bank_billing[0].rate_status, report.bank_billing[0].rate), ("MATCHED", Decimal("125")))
+
+    def test_three_eligible_visits_are_three_points_and_parent_is_not_counted(self):
+        other = Executive(full_name="Second Executive"); self.db.add(other); self.db.flush()
+        self.executive_rate("80"); self.db.add(ExecutivePayoutRate(executive_id=other.id, payout_rate=Decimal("80"), effective_from=date(2026, 1, 1)))
+        self.bank_rate("125")
+        parent = self.case("MULTI-1", date(2026, 6, 1))
+        self.db.add_all([
+            CaseVisit(case_id=parent.id, visit_type="Residence", receive_date=date(2026, 6, 1), city="Jaipur", executive="Abdul Hameed", status="Positive", closed_date=date(2026, 6, 2)),
+            CaseVisit(case_id=parent.id, visit_type="Office", receive_date=date(2026, 6, 2), city="Jaipur", executive="Abdul Hameed", status="Negative", closed_date=date(2026, 6, 3)),
+            CaseVisit(case_id=parent.id, visit_type="Business", receive_date=date(2026, 6, 3), city="Jaipur", executive="Second Executive", status="Positive", closed_date=date(2026, 6, 4)),
+            CaseVisit(case_id=parent.id, visit_type="Other", receive_date=date(2026, 6, 4), city="Jaipur", executive="Abdul Hameed", status="Pending"),
+        ]); self.db.commit()
+        report = monthly_billing(self.db, "2026-06")
+        self.assertEqual(report.summary.billable_cases, 3)
+        self.assertEqual(sum(row.total_points for row in report.executive_billing), 3)
+        self.assertEqual({row.executive: row.total_points for row in report.executive_billing}, {"Abdul Hameed": 2, "Second Executive": 1})
+        self.assertEqual(len(report.bank_billing), 3)
+        self.assertTrue(all(row.visit_id is not None for row in report.bank_billing))
 
     def test_bank_billing_uses_structured_los_without_case_number_fallback(self):
         self.executive_rate("80"); self.bank_rate("125")

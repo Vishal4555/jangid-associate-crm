@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { getCaseActivity } from "../../services/caseService";
 import type { Case, CaseActivity } from "../../types/case";
 import StatusBadge from "./StatusBadge";
+import CaseVisitsPanel from "./CaseVisitsPanel";
 
 type Props = {
   open: boolean;
@@ -80,7 +81,7 @@ function formatActivityDate(value: string): string {
 }
 
 export default function ViewCaseModal({ open, caseItem, onClose }: Props) {
-  const [activeTab, setActiveTab] = useState<"details" | "timeline">("details");
+  const [activeTab, setActiveTab] = useState<"details" | "visits" | "timeline">("details");
   const [activities, setActivities] = useState<CaseActivity[] | null>(null);
   const [activityLoading, setActivityLoading] = useState(false);
   const [activityError, setActivityError] = useState<string | null>(null);
@@ -124,6 +125,7 @@ export default function ViewCaseModal({ open, caseItem, onClose }: Props) {
 
         <div className="flex border-b border-slate-200 px-6 dark:border-slate-800" role="tablist">
           <button type="button" role="tab" aria-selected={activeTab === "details"} onClick={() => setActiveTab("details")} className={`border-b-2 px-4 py-3 text-sm font-semibold ${activeTab === "details" ? "border-orange-500 text-orange-600" : "border-transparent text-slate-500"}`}>Details</button>
+          <button type="button" role="tab" aria-selected={activeTab === "visits"} onClick={() => setActiveTab("visits")} className={`border-b-2 px-4 py-3 text-sm font-semibold ${activeTab === "visits" ? "border-orange-500 text-orange-600" : "border-transparent text-slate-500"}`}>Case Visits</button>
           <button type="button" role="tab" aria-selected={activeTab === "timeline"} onClick={() => void openTimeline()} className={`border-b-2 px-4 py-3 text-sm font-semibold ${activeTab === "timeline" ? "border-orange-500 text-orange-600" : "border-transparent text-slate-500"}`}>Timeline</button>
         </div>
 
@@ -156,6 +158,8 @@ export default function ViewCaseModal({ open, caseItem, onClose }: Props) {
                 <p className="mt-1 whitespace-pre-line text-slate-800 dark:text-slate-200">{caseItem.remarks || "-"}</p>
               </div>
             </div>
+          ) : activeTab === "visits" ? (
+            <CaseVisitsPanel caseItem={caseItem} />
           ) : activityLoading ? (
             <p className="py-10 text-center text-slate-500">Loading activity…</p>
           ) : activityError ? (

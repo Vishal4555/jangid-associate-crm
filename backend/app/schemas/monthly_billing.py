@@ -32,6 +32,8 @@ class ExecutiveMonthlyRow(BaseModel):
 
 class BankMonthlyRow(BaseModel):
     case_id: int | None
+    visit_id: int | None = None
+    visit_type: str | None = None
     date: date
     company: str | None
     bank: str | None

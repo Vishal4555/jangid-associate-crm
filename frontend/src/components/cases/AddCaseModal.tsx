@@ -18,6 +18,7 @@ type Props = {
 };
 
 const defaultValues: CaseFormData = {
+  visit_type: "Residence",
   case_no: "",
   los_no: "",
   receive_date: "",
