@@ -8,7 +8,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import and_, exists, func, or_, select, text
+from sqlalchemy import and_, delete, exists, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -30,6 +30,8 @@ from app.db.database import Base, engine, get_db
 from app.models.case import Case
 from app.models.case_visit import CaseVisit
 from app.models.case_activity import CaseActivity
+from app.models.billing import Billing
+from app.models.billing_month import BankMonthlyBillingSnapshot, BillingMonth
 from app.models.master import Company, District, Bank
 from app.models.user import User
 from app.schemas.case import (
@@ -520,6 +522,12 @@ def delete_case(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission("cases.delete")),
 ):
+    if current_user.role != "Admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Admin may delete a case",
+        )
+
     existing_case = db.get(Case, id)
     if existing_case is None:
         raise HTTPException(
@@ -527,8 +535,38 @@ def delete_case(
             detail=f"Case with id {id} not found"
         )
 
-    db.delete(existing_case)
-    db.commit()
+    protected_message = (
+        "This case is part of finalized billing or payment history and cannot be deleted."
+    )
+    has_billing_history = db.scalar(
+        select(Billing.id).where(Billing.case_id == id).limit(1)
+    ) is not None
+    has_finalized_snapshot = db.scalar(
+        select(BankMonthlyBillingSnapshot.id)
+        .join(BillingMonth, BillingMonth.id == BankMonthlyBillingSnapshot.billing_month_id)
+        .where(
+            BankMonthlyBillingSnapshot.case_id == id,
+            BillingMonth.status == "FINALIZED",
+        )
+        .limit(1)
+    ) is not None
+    if has_billing_history or has_finalized_snapshot:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=protected_message)
+
+    try:
+        # These rows are operational and may be removed with an otherwise
+        # unreferenced case. The transaction is committed only after the parent.
+        db.execute(delete(CaseActivity).where(CaseActivity.case_id == id))
+        db.execute(delete(CaseVisit).where(CaseVisit.case_id == id))
+        db.delete(existing_case)
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        logger.info("Case %s deletion blocked by an immutable dependency", id)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=protected_message,
+        ) from exc
 
     return {"message": f"Case with id {id} deleted successfully"}
 

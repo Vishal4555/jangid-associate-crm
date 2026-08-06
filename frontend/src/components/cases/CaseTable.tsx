@@ -158,16 +158,16 @@ export default function CaseTable({
 
                   <div className="flex justify-center gap-2">
 
-                    {canEdit&&<button
+                    <button
                       onClick={() => onView(item)}
                       className="text-blue-600 hover:bg-blue-50 rounded p-1.5"
                       aria-label={`View case ${item.los_no || "without LOS number"}`}
                       title="View"
                     >
                       <Eye size={18} />
-                    </button>}
+                    </button>
 
-                    {canDelete&&<button
+                    {canEdit&&<button
                       onClick={() => onEdit(item)}
                       className="text-green-600 hover:bg-green-50 rounded p-1.5"
                       aria-label={`Edit case ${item.los_no || "without LOS number"}`}
@@ -176,14 +176,14 @@ export default function CaseTable({
                       <Pencil size={18} />
                     </button>}
 
-                    <button
+                    {canDelete&&<button
                       onClick={() => onDelete(item)}
                       className="text-red-600 hover:bg-red-50 rounded p-1.5"
                       aria-label={`Delete case ${item.los_no || "without LOS number"}`}
                       title="Delete"
                     >
                       <Trash2 size={18} />
-                    </button>
+                    </button>}
 
                   </div>
 
