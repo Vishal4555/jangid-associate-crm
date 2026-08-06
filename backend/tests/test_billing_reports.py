@@ -38,7 +38,7 @@ class BillingReportTests(unittest.TestCase):
             bank="Bank Two", applicant="Applicant B", executive="Other Exec", status="Pending")
         self.db.add_all([self.case_a, self.case_b]); self.db.flush()
         self.db.add_all([
-            CaseVisit(case_id=self.case_a.id, visit_type="Residence", receive_date=date(2026, 8, 1), executive="Exec One", status="Pending"),
+            CaseVisit(case_id=self.case_a.id, visit_type="Residence", address="Applicant visit address", receive_date=date(2026, 8, 1), executive="Exec One", status="Pending"),
             CaseVisit(case_id=self.case_a.id, visit_type="Office", receive_date=date(2026, 8, 2), executive="Exec One", status="Positive", closed_date=date(2026, 8, 3)),
             CaseVisit(case_id=self.case_a.id, visit_type="Permanent", receive_date=date(2026, 8, 4), executive="Exec One", status="Negative", closed_date=date(2026, 8, 5)),
             CaseVisit(case_id=self.case_b.id, visit_type="Residence", receive_date=date(2026, 8, 1), executive="Other Exec", status="Positive", closed_date=date(2026, 8, 2)),
@@ -67,8 +67,23 @@ class BillingReportTests(unittest.TestCase):
         self.assertEqual(report.totals, {"total_visits": 3, "pending": 1, "positive": 1, "negative": 1,
             "executive_rate_total": Decimal("150"), "missing_rate_count": 0})
         self.assertTrue(all(x.company == "Company A" for x in report.items[0].details))
-        self.assertEqual(report.items[0].address, "Plot 12, Mansarovar, Jaipur, 302020")
-        self.assertNotEqual(report.items[0].address, self.case_a.address)
+        self.assertEqual(report.items[0].details[0].address, "Applicant visit address")
+        self.assertEqual(report.items[0].details[0].mobile, "111")
+        self.assertNotEqual(report.items[0].details[0].address, self.master.address)
+        self.assertNotEqual(report.items[0].details[0].mobile, self.master.mobile)
+
+    @patch("app.services.billing_report_service.resolve_monthly_executive_rate", return_value=RateMatch("MATCHED", amount=Decimal("50")))
+    def test_multiple_applicants_remain_separate_details_in_one_group(self, _rate):
+        second = Case(case_no="A-2", los_no="LOS-A2", company_id=self.company_a.id, company=self.company_a.name,
+            bank="Bank One", applicant="Applicant B", mobile="222", executive="Exec One", status="Pending")
+        self.db.add(second); self.db.flush(); self.db.add(CaseVisit(case_id=second.id, visit_type="Residence",
+            address="Second visit address", receive_date=date(2026, 8, 6), executive="Exec One", status="Pending")); self.db.commit()
+        report = executive_report(self.db, self.admin, None, date(2026, 8, 1), date(2026, 8, 31))
+        group = next(x for x in report.items if x.executive == "Exec One" and x.bank_finance_company == "Bank One")
+        self.assertEqual(group.total_cases_visits, 4)
+        self.assertEqual({x.applicant for x in group.details}, {"Applicant A", "Applicant B"})
+        second_detail = next(x for x in group.details if x.applicant == "Applicant B")
+        self.assertEqual((second_detail.address, second_detail.mobile), ("Second visit address", "222"))
 
     def test_company_scope_rejects_out_of_scope_company(self):
         with self.assertRaises(HTTPException) as raised:

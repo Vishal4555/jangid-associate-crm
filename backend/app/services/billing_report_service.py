@@ -36,12 +36,6 @@ def _metadata(db: Session, start: date, end: date) -> ReportMetadata:
         draft_months=draft, generated_at=datetime.now(timezone.utc), limitations=[])
 
 
-def _executive_address(executive: Executive | None) -> str | None:
-    if executive is None: return None
-    value = ", ".join(str(x).strip() for x in (executive.address, executive.city, executive.district_name, executive.pincode) if x and str(x).strip())
-    return value or None
-
-
 def _visits(db, start, end, company_ids, executive_name=None, company_id=None, bank=None,
             district_id=None, city=None, executive=None, visit_type=None, status=None):
     stmt = select(Case, CaseVisit).join(CaseVisit, CaseVisit.case_id == Case.id).where(CaseVisit.receive_date.between(start, end))
@@ -112,7 +106,6 @@ def executive_report(db: Session, user: User, company_ids, date_from: date, date
     if date_from > date_to: raise HTTPException(status_code=422, detail="date_from must be on or before date_to")
     own = user.executive_name if user.role == "Executive" else None
     items = _visits(db, date_from, date_to, company_ids, own, filters.pop("company_id", None), **filters)
-    masters = {normalized(x.full_name): x for x in db.scalars(select(Executive)).all()}
     frozen = _frozen_visits(db, date_from, date_to)
     groups = defaultdict(list)
     for item in items: groups[((item.executive or "Unspecified").strip(), (item.bank or "Unspecified").strip())].append(item)
@@ -124,21 +117,21 @@ def executive_report(db: Session, user: User, company_ids, date_from: date, date
             if snapshot is not None:
                 matches[index] = type(matches[index])(snapshot.executive_rate_status or "MISSING", amount=snapshot.executive_rate)
         status = "MISSING" if any(x.status == "MISSING" for x in matches) else "AMBIGUOUS" if any(x.status == "AMBIGUOUS" for x in matches) else "MATCHED"
-        master = masters.get(normalized(executive))
         bank_rows.append(ExecutiveBankSummaryRow(executive=executive, bank_finance_company=bank,
-            address=_executive_address(master), mobile=master.mobile if master else None, total_cases_visits=len(visits),
+            total_cases_visits=len(visits),
             pending=sum(x.status == "Pending" for x in visits), positive=sum(x.status == "Positive" for x in visits),
             negative=sum(x.status == "Negative" for x in visits), rate_status=status,
             executive_rate_total=sum((x.amount for x in matches if x.amount is not None), Decimal()) if status == "MATCHED" else None,
             details=[ExecutiveVisitDetail(date=visit.receive_date, los=visit.los_no, applicant=visit.applicant,
+                address=visit.address, mobile=visit.mobile,
                 visit_type=visit.visit_type, company=visit.company, bank=visit.bank, district=visit.district,
                 city=visit.city, status=visit.status, executive_rate=match.amount,
                 executive_rate_status=match.status) for visit, match in zip(visits, matches)]))
     summaries = []
     for executive in sorted({x.executive for x in bank_rows}):
-        rows = [x for x in bank_rows if x.executive == executive]; master = masters.get(normalized(executive))
+        rows = [x for x in bank_rows if x.executive == executive]
         ok = all(x.rate_status == "MATCHED" for x in rows)
-        summaries.append(ExecutiveSummaryRow(executive=executive, address=_executive_address(master), mobile=master.mobile if master else None,
+        summaries.append(ExecutiveSummaryRow(executive=executive,
             total_visits=sum(x.total_cases_visits for x in rows), pending=sum(x.pending for x in rows),
             positive=sum(x.positive for x in rows), negative=sum(x.negative for x in rows),
             total_payment=sum((x.executive_rate_total or Decimal() for x in rows), Decimal()) if ok else None,

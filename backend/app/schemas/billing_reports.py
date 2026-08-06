@@ -42,8 +42,6 @@ class CompanyBillingReport(BaseModel):
 class ExecutiveBankSummaryRow(BaseModel):
     executive: str
     bank_finance_company: str
-    address: str | None = None
-    mobile: str | None = None
     total_cases_visits: int
     pending: int
     positive: int
@@ -57,6 +55,8 @@ class ExecutiveVisitDetail(BaseModel):
     date: date
     los: str | None
     applicant: str | None
+    address: str | None
+    mobile: str | None
     visit_type: str | None
     company: str | None
     bank: str | None
@@ -69,8 +69,6 @@ class ExecutiveVisitDetail(BaseModel):
 
 class ExecutiveSummaryRow(BaseModel):
     executive: str
-    address: str | None = None
-    mobile: str | None = None
     total_visits: int
     pending: int
     positive: int
