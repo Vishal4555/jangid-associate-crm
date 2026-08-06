@@ -17,6 +17,7 @@ export interface CaseVisitRow {
   tat_days: number | null; address: string; district_id: number | null;
   district: string; city: string; landmark: string; executive: string;
   status: CaseStatus; negative_reason: string; remarks: string;
+  next_follow_up_at: string | null; follow_up_note: string | null;
   created_at: string; updated_at: string;
 }
 

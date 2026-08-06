@@ -1,11 +1,10 @@
 import API from "../api/caseApi";
-import type { Case } from "../types/case";
-import { mapCaseResponse, type CaseApiResponse } from "./caseService";
+import type { CaseVisitRow } from "../types/case";
 
 
-async function getFollowUps(path: "today" | "upcoming" | "overdue"): Promise<Case[]> {
-  const response = await API.get<CaseApiResponse[]>(`/follow-ups/${path}`);
-  return Array.isArray(response.data) ? response.data.map(mapCaseResponse) : [];
+async function getFollowUps(path: "today" | "upcoming" | "overdue"): Promise<CaseVisitRow[]> {
+  const response = await API.get<CaseVisitRow[]>(`/follow-ups/${path}`);
+  return Array.isArray(response.data) ? response.data : [];
 }
 
 

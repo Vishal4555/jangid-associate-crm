@@ -1,5 +1,6 @@
 import os
 import unittest
+from datetime import date
 
 os.environ.setdefault("DATABASE_URL","sqlite:///./company-scope-tests.db")
 
@@ -56,6 +57,22 @@ class CompanyScopeTests(unittest.TestCase):
     def test_manager_dashboard_is_company_scoped(self):
         summary=get_dashboard_summary(self.db,company_ids={self.a.id})
         self.assertEqual(summary.total_cases,1)
+
+    def test_dashboard_totals_match_scoped_visit_status_filters(self):
+        # Keep the parent legacy status Pending to prove dashboard statistics use visits.
+        self.db.add_all([
+            CaseVisit(case_id=self.case_a.id,visit_type="Office",executive="Exec One",status="Positive",closed_date=date.today()),
+            CaseVisit(case_id=self.case_a.id,visit_type="Business",executive="Exec One",status="Negative",closed_date=date.today()),
+        ])
+        self.db.commit()
+        summary=get_dashboard_summary(self.db,company_ids={self.a.id})
+        self.assertEqual(summary.total_cases,3)
+        self.assertEqual(summary.pending_cases,1)
+        self.assertEqual(summary.positive_cases,1)
+        self.assertEqual(summary.negative_cases,1)
+
+        executive_summary=get_dashboard_summary(self.db,executive_scope="Exec One",company_ids={self.a.id})
+        self.assertEqual(executive_summary,summary)
 
 
 if __name__=="__main__":unittest.main()

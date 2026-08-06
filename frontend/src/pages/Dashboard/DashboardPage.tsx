@@ -16,7 +16,7 @@ import DashboardLayout from "../../layouts/DashboardLayout";
 import { subscribeCasesChanged } from "../../services/caseChangeEvents";
 import { getDashboardSummary, getEmptyDashboardSummary } from "../../services/dashboardService";
 import { getTodayFollowUps, getUpcomingFollowUps } from "../../services/followUpService";
-import type { Case } from "../../types/case";
+import type { CaseVisitRow } from "../../types/case";
 import type { DashboardSummary } from "../../types/dashboard";
 
 
@@ -30,8 +30,8 @@ function formatFollowUp(value: string) {
 
 export default function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary>(getEmptyDashboardSummary);
-  const [todayFollowUps, setTodayFollowUps] = useState<Case[]>([]);
-  const [upcomingFollowUps, setUpcomingFollowUps] = useState<Case[]>([]);
+  const [todayFollowUps, setTodayFollowUps] = useState<CaseVisitRow[]>([]);
+  const [upcomingFollowUps, setUpcomingFollowUps] = useState<CaseVisitRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const initializedRef = useRef(false);
@@ -121,7 +121,7 @@ export default function DashboardPage() {
           value={summary.total_cases}
           icon={UsersRound}
           tone="blue"
-          detail="All cases in the pipeline"
+          detail="All visits in the pipeline"
         />
         <DashboardCard
           title="Today's Follow-ups"
@@ -138,10 +138,10 @@ export default function DashboardPage() {
         />
         <DashboardCard
           title="Closed Cases"
-          value={summary.positive_cases}
+          value={summary.positive_cases + summary.negative_cases}
           icon={CheckCircle2}
           tone="green"
-          detail="Positive outcomes to date"
+          detail="Positive and negative outcomes"
         />
       </div>
 
@@ -226,14 +226,14 @@ export default function DashboardPage() {
             <ul className="mt-4 max-h-72 space-y-3 overflow-y-auto">
               {upcomingFollowUps.map((item) => (
                 <li
-                  key={item.id}
+                  key={item.visit_id}
                   className="rounded-xl border border-slate-200 p-3 dark:border-slate-700"
                 >
                   <p className="font-semibold text-slate-900 dark:text-white">
                     {item.applicant || item.los_no || "LOS not available"}
                   </p>
                   <p className="mt-1 text-xs font-medium text-orange-600 dark:text-orange-400">
-                    {formatFollowUp(item.next_follow_up_at)}
+                    {item.next_follow_up_at && formatFollowUp(item.next_follow_up_at)}
                   </p>
                   {item.follow_up_note && (
                     <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">

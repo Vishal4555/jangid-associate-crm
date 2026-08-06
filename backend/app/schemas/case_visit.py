@@ -77,6 +77,8 @@ class CaseVisitListRow(BaseModel):
     status: VisitStatus
     negative_reason: str | None = None
     remarks: str | None = None
+    next_follow_up_at: datetime | None = None
+    follow_up_note: str | None = None
     created_at: datetime
     updated_at: datetime
 
