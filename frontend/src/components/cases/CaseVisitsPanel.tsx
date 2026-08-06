@@ -1,28 +1,29 @@
 import { useEffect, useState } from "react";
 import { createCaseVisit, deleteCaseVisit, getCaseVisits, updateCaseVisit } from "../../services/caseService";
-import type { Case, CaseVisit, CaseVisitPayload, CaseStatus, VisitType } from "../../types/case";
+import type { CaseVisit, CaseVisitPayload, CaseStatus, VisitType } from "../../types/case";
 import StatusBadge from "./StatusBadge";
 import { useAuth } from "../../context/AuthContext";
 
-const blank = (item: Case): CaseVisitPayload => ({ visit_type: "Residence", address: "", district_id: item.district_id,
+type ParentVisitContext = { case_id: number; district_id: number | null; district: string };
+const blank = (item: ParentVisitContext): CaseVisitPayload => ({ visit_type: "Residence", address: "", district_id: item.district_id,
   district: item.district, city: "", landmark: "", executive: "", status: "Pending", negative_reason: "",
   receive_date: new Date().toISOString().slice(0, 10), remarks: "", next_follow_up_at: null, follow_up_note: "" });
 
-export default function CaseVisitsPanel({ caseItem }: { caseItem: Case }) {
+export default function CaseVisitsPanel({ caseItem }: { caseItem: ParentVisitContext }) {
   const {currentUser}=useAuth();const has=(code:string)=>Boolean(currentUser?.permissions.includes(code));
   const [visits, setVisits] = useState<CaseVisit[]>([]); const [editing, setEditing] = useState<CaseVisit | null>(null);
   const [form, setForm] = useState<CaseVisitPayload>(blank(caseItem)); const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
-  const load = async () => { try { setVisits(await getCaseVisits(caseItem.id)); setError(""); } catch (e) { setError(e instanceof Error ? e.message : "Unable to load visits"); } };
-  useEffect(() => { void load(); }, [caseItem.id]);
+  const load = async () => { try { setVisits(await getCaseVisits(caseItem.case_id)); setError(""); } catch (e) { setError(e instanceof Error ? e.message : "Unable to load visits"); } };
+  useEffect(() => { void load(); }, [caseItem.case_id]);
   const set = (key: keyof CaseVisitPayload, value: string) => setForm(current => ({ ...current, [key]: value }));
   const startAdd = () => { setEditing(null); setForm(blank(caseItem)); setOpen(true); };
   const startEdit = (v: CaseVisit) => { setEditing(v); setForm({ visit_type:v.visit_type,address:v.address,district_id:v.district_id,district:v.district,
     city:v.city,landmark:v.landmark,executive:v.executive,status:v.status,negative_reason:v.negative_reason,receive_date:v.receive_date,
     remarks:v.remarks,next_follow_up_at:v.next_follow_up_at,follow_up_note:v.follow_up_note }); setOpen(true); };
-  const save = async () => { try { const operational={status:form.status,negative_reason:form.negative_reason,remarks:form.remarks,next_follow_up_at:form.next_follow_up_at,follow_up_note:form.follow_up_note}; editing ? await updateCaseVisit(caseItem.id, editing.id, has("visits.edit")?form:operational) : await createCaseVisit(caseItem.id, form); setOpen(false); await load(); }
+  const save = async () => { try { const operational={status:form.status,negative_reason:form.negative_reason,remarks:form.remarks,next_follow_up_at:form.next_follow_up_at,follow_up_note:form.follow_up_note}; editing ? await updateCaseVisit(caseItem.case_id, editing.id, has("visits.edit")?form:operational) : await createCaseVisit(caseItem.case_id, form); setOpen(false); await load(); }
     catch (e) { setError(e instanceof Error ? e.message : "Unable to save visit"); } };
-  const remove = async (v: CaseVisit) => { if (!confirm(`Delete ${v.visit_type} visit?`)) return; await deleteCaseVisit(caseItem.id, v.id); await load(); };
+  const remove = async (v: CaseVisit) => { if (!confirm(`Delete ${v.visit_type} visit?`)) return; await deleteCaseVisit(caseItem.case_id, v.id); await load(); };
   return <div className="space-y-4">
     <div className="flex items-center justify-between"><h3 className="font-semibold">Case Visits</h3>{has("visits.create")&&<button onClick={startAdd} className="rounded-lg bg-orange-600 px-3 py-2 text-sm text-white">Add Visit</button>}</div>
     {error && <p className="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}

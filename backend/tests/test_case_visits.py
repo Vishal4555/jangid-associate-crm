@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 import app.db.base
-from app.api.case_visits import create_visit, update_visit
+from app.api.case_visits import create_visit, list_case_visits, update_visit
 from app.db.database import Base
 from app.models.case import Case
 from app.models.case_visit import CaseVisit
@@ -39,6 +39,34 @@ class CaseVisitTests(unittest.TestCase):
         pending = update_visit(self.case.id, first.id, CaseVisitUpdate(status="Pending"), self.db, self.user)
         self.assertIsNone(pending.closed_date)
         self.assertIsNone(second.closed_date)
+
+    def test_operational_list_returns_and_filters_visit_rows(self):
+        self.case.los_no = "LOS-1001"; self.case.company = "R Samdani"; self.case.bank = "HDFC"
+        self.case.mobile = "9999999999"; self.db.commit()
+        visits = [
+            CaseVisit(case_id=self.case.id, visit_type="Residence", address="Home", executive="Amit", status="Positive", receive_date=date(2026, 8, 1), closed_date=date(2026, 8, 2)),
+            CaseVisit(case_id=self.case.id, visit_type="Office", address="Office", executive="Beena", status="Pending", receive_date=date(2026, 8, 3)),
+            CaseVisit(case_id=self.case.id, visit_type="Permanent", address="Permanent", executive="Chetan", status="Negative", receive_date=date(2026, 8, 4), closed_date=date(2026, 8, 6)),
+        ]
+        self.db.add_all(visits); self.db.commit()
+        args = dict(search="LOS-1001", status_filter=None, visit_type=None, company_id=None, bank=None,
+            district_id=None, city=None, executive=None, date_from=None, date_to=None, page=1, page_size=2,
+            db=self.db, user=self.user)
+        first_page = list_case_visits(**args)
+        self.assertEqual(first_page["total"], 3)
+        self.assertEqual(len(first_page["items"]), 2)
+        self.assertEqual({row["visit_type"] for row in first_page["items"]}, {"Office", "Permanent"})
+        residence = list_case_visits(**{**args, "search": None, "visit_type": "Residence", "page_size": 20})
+        self.assertEqual(residence["total"], 1)
+        self.assertEqual(residence["items"][0]["address"], "Home")
+
+    def test_editing_one_visit_does_not_change_sibling(self):
+        first = create_visit(self.case.id, CaseVisitCreate(visit_type="Residence", address="Before"), self.db, self.user)
+        second = create_visit(self.case.id, CaseVisitCreate(visit_type="Office", address="Sibling"), self.db, self.user)
+        update_visit(self.case.id, first.id, CaseVisitUpdate(address="After", executive="Amit"), self.db, self.user)
+        self.db.refresh(second)
+        self.assertEqual(second.address, "Sibling")
+        self.assertIsNone(second.executive)
 
 
 if __name__ == "__main__": unittest.main()

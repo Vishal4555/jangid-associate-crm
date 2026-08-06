@@ -7,6 +7,7 @@ import type {
   DeleteCaseResponse,
   CaseVisit,
   CaseVisitPayload,
+  CaseVisitListResponse,
 } from "../types/case";
 
 export type CaseApiResponse = {
@@ -117,6 +118,19 @@ export const getCaseById = async (id: number): Promise<Case> => {
   } catch (error) {
     throw toErrorMessage(error);
   }
+};
+
+export type VisitListQuery = {
+  search?: string; status?: string; visit_type?: string; company_id?: number; bank?: string;
+  district_id?: number; city?: string; executive?: string; date_from?: string; date_to?: string;
+  page?: number; page_size?: number;
+};
+
+export const getCaseVisitRows = async (query: VisitListQuery): Promise<CaseVisitListResponse> => {
+  try {
+    const response = await API.get<CaseVisitListResponse>("/case-visits", { params: query });
+    return response.data;
+  } catch (error) { throw toErrorMessage(error); }
 };
 
 export const getCaseVisits = async (caseId: number): Promise<CaseVisit[]> => {

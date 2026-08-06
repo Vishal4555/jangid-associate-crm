@@ -1,21 +1,81 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import delete, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.security import has_permission, require_any_permission, require_permission
-from app.core.company_scope import assert_company_access
+from app.core.company_scope import apply_company_scope, assert_company_access
 from app.db.database import get_db
 from app.models.case import Case
 from app.models.case_activity import CaseActivity
 from app.models.case_visit import CaseVisit
+from app.models.billing import Billing
+from app.models.billing_month import BankMonthlyBillingSnapshot, BillingMonth
 from app.models.master import District
 from app.models.user import User
 from app.schemas.case import MessageResponse
-from app.schemas.case_visit import CaseVisitCreate, CaseVisitResponse, CaseVisitUpdate
+from app.schemas.case_visit import (
+    CaseVisitCreate, CaseVisitListResponse, CaseVisitResponse, CaseVisitUpdate,
+)
 
 router = APIRouter(prefix="/cases/{case_id}/visits", tags=["case visits"])
+list_router = APIRouter(prefix="/case-visits", tags=["case visits"])
+
+
+@list_router.get("", response_model=CaseVisitListResponse)
+def list_case_visits(
+    search: str | None = None,
+    status_filter: str | None = Query(None, alias="status"),
+    visit_type: str | None = None,
+    company_id: int | None = None,
+    bank: str | None = None,
+    district_id: int | None = None,
+    city: str | None = None,
+    executive: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("cases.view")),
+):
+    stmt = select(CaseVisit, Case).join(Case, Case.id == CaseVisit.case_id)
+    stmt = apply_company_scope(stmt, Case.company_id, user)
+    if user.role == "Executive" and not has_permission(user, "cases.view_all"):
+        stmt = stmt.where(CaseVisit.executive == _executive_name(user))
+    if search and (term := search.strip()):
+        pattern = f"%{term.casefold()}%"
+        stmt = stmt.where(or_(
+            func.lower(Case.los_no).like(pattern), func.lower(Case.applicant).like(pattern),
+            func.lower(Case.mobile).like(pattern), func.lower(CaseVisit.address).like(pattern),
+            func.lower(CaseVisit.executive).like(pattern), func.lower(CaseVisit.visit_type).like(pattern),
+        ))
+    if status_filter: stmt = stmt.where(CaseVisit.status == status_filter)
+    if visit_type: stmt = stmt.where(CaseVisit.visit_type == visit_type)
+    if company_id is not None: stmt = stmt.where(Case.company_id == company_id)
+    if bank: stmt = stmt.where(Case.bank == bank)
+    if district_id is not None: stmt = stmt.where(CaseVisit.district_id == district_id)
+    if city: stmt = stmt.where(func.lower(CaseVisit.city) == city.strip().casefold())
+    if executive: stmt = stmt.where(CaseVisit.executive == executive)
+    if date_from: stmt = stmt.where(CaseVisit.receive_date >= date_from)
+    if date_to: stmt = stmt.where(CaseVisit.receive_date <= date_to)
+
+    total = db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery())) or 0
+    results = db.execute(stmt.order_by(CaseVisit.id.desc()).offset((page - 1) * page_size).limit(page_size)).all()
+    items = [{
+        "visit_id": visit.id, "case_id": case.id, "visit_type": visit.visit_type,
+        "los_no": case.los_no, "company_id": case.company_id, "company": case.company,
+        "bank": case.bank, "applicant": case.applicant, "mobile": case.mobile,
+        "loan_type": case.loan_type, "receive_date": visit.receive_date,
+        "closed_date": visit.closed_date, "tat_days": visit.tat_days, "address": visit.address,
+        "district_id": visit.district_id, "district": visit.district, "city": visit.city,
+        "landmark": visit.landmark, "executive": visit.executive, "status": visit.status,
+        "negative_reason": visit.negative_reason, "remarks": visit.remarks,
+        "created_at": visit.created_at, "updated_at": visit.updated_at,
+    } for visit, case in results]
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
 def _case(db: Session, case_id: int, user: User) -> Case:
@@ -120,7 +180,26 @@ def update_visit(case_id: int, visit_id: int, payload: CaseVisitUpdate, db: Sess
 
 @router.delete("/{visit_id}", response_model=MessageResponse)
 def delete_visit(case_id: int, visit_id: int, db: Session = Depends(get_db), user: User = Depends(require_permission("visits.delete"))):
-    _case(db, case_id, user); visit = _visit(db, case_id, visit_id)
+    parent = _case(db, case_id, user); visit = _visit(db, case_id, visit_id)
+    if user.role != "Admin":
+        raise HTTPException(status_code=403, detail="Only Admin may delete a visit")
+    visit_count = db.scalar(select(func.count(CaseVisit.id)).where(CaseVisit.case_id == case_id)) or 0
+    if visit_count == 1:
+        protected = db.scalar(select(Billing.id).where(Billing.case_id == case_id).limit(1)) is not None
+        protected = protected or db.scalar(
+            select(BankMonthlyBillingSnapshot.id)
+            .join(BillingMonth, BillingMonth.id == BankMonthlyBillingSnapshot.billing_month_id)
+            .where(BankMonthlyBillingSnapshot.case_id == case_id, BillingMonth.status == "FINALIZED").limit(1)
+        ) is not None
+        if protected:
+            raise HTTPException(status_code=409, detail="This visit is part of finalized billing or payment history and cannot be deleted.")
+        try:
+            db.execute(delete(CaseActivity).where(CaseActivity.case_id == case_id))
+            db.delete(visit); db.delete(parent); db.commit()
+        except IntegrityError as exc:
+            db.rollback()
+            raise HTTPException(status_code=409, detail="This visit has protected history and cannot be deleted.") from exc
+        return {"message": f"Only visit {visit_id} and its parent case were deleted successfully"}
     activity = _activity(case_id, "VISIT_DELETED", user, visit)
     db.delete(visit); db.add(activity); db.commit()
     return {"message": f"Visit with id {visit_id} deleted successfully"}

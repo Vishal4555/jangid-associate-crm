@@ -23,7 +23,7 @@ from app.api.masters import router as masters_router
 from app.api.notifications import router as notifications_router
 from app.api.users import me_router as user_company_me_router, router as users_router
 from app.api.permissions import router as permissions_router
-from app.api.case_visits import router as case_visits_router
+from app.api.case_visits import list_router as case_visit_list_router, router as case_visits_router
 from app.core.security import get_current_active_user, has_permission, require_any_permission, require_permission
 from app.core.company_scope import assert_company_access, assigned_company_ids
 from app.db.database import Base, engine, get_db
@@ -258,6 +258,7 @@ app.include_router(user_company_me_router)
 app.include_router(permissions_router)
 app.include_router(notifications_router)
 app.include_router(case_visits_router)
+app.include_router(case_visit_list_router)
 app.include_router(auth_router, prefix="/api")
 app.include_router(billing_router, prefix="/api", include_in_schema=False)
 app.include_router(payout_rates_router, prefix="/api", include_in_schema=False)
@@ -269,6 +270,7 @@ app.include_router(user_company_me_router, prefix="/api")
 app.include_router(permissions_router, prefix="/api")
 app.include_router(notifications_router, prefix="/api", include_in_schema=False)
 app.include_router(case_visits_router, prefix="/api", include_in_schema=False)
+app.include_router(case_visit_list_router, prefix="/api", include_in_schema=False)
 app.include_router(follow_ups_router)
 app.include_router(follow_ups_router, prefix="/api", include_in_schema=False)
 
@@ -359,13 +361,14 @@ def create_case(
 
     try:
         matches = db.scalars(select(Case).where(
-            func.lower(func.trim(Case.los_no)) == case_data["los_no"].casefold()
+            func.lower(func.trim(Case.los_no)) == case_data["los_no"].casefold(),
+            Case.company_id == case_data.get("company_id"),
+            func.lower(func.trim(Case.bank)) == _normalized_identity(case_data.get("bank")),
         ).with_for_update()).all()
         if len(matches) > 1:
             raise HTTPException(status_code=409, detail="Multiple parent cases already use this LOS / Application No; resolve the data before adding a visit.")
         if matches:
             new_case = matches[0]
-            _assert_parent_compatible(new_case, case_data)
             result_message = "New visit added to existing application."
         else:
             parent_fields = {key: value for key, value in case_data.items() if key in Case.__table__.columns.keys()}

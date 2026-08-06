@@ -10,6 +10,20 @@ export interface CaseVisit {
   tat_days: number | null; created_at: string; updated_at: string;
 }
 
+export interface CaseVisitRow {
+  visit_id: number; case_id: number; visit_type: VisitType; los_no: string;
+  company_id: number | null; company: string; bank: string; applicant: string;
+  mobile: string; loan_type: string; receive_date: string; closed_date: string;
+  tat_days: number | null; address: string; district_id: number | null;
+  district: string; city: string; landmark: string; executive: string;
+  status: CaseStatus; negative_reason: string; remarks: string;
+  created_at: string; updated_at: string;
+}
+
+export interface CaseVisitListResponse {
+  items: CaseVisitRow[]; total: number; page: number; page_size: number;
+}
+
 export type CaseVisitPayload = Omit<CaseVisit, "id" | "case_id" | "closed_date" | "tat_days" | "created_at" | "updated_at">;
 
 export interface Case {

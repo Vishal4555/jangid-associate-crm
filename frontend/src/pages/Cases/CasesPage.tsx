@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import DashboardLayout from "../../layouts/DashboardLayout";
 import CaseToolbar from "../../components/cases/CaseToolbar";
@@ -9,9 +9,9 @@ import EditCaseModal from "../../components/cases/EditCaseModal";
 import DeleteCaseDialog from "../../components/cases/DeleteCaseDialog";
 import ViewCaseModal from "../../components/cases/ViewCaseModal";
 
-import { getCases } from "../../services/caseService";
+import { getCaseVisitRows } from "../../services/caseService";
 import { getMyAssignedCompanies } from "../../services/userService";
-import type { Case, CaseStatusFilter } from "../../types/case";
+import type { CaseVisitRow, CaseStatusFilter, VisitType } from "../../types/case";
 import { useAuth } from "../../context/AuthContext";
 
 function exportTat(receiveDate: string, closedDate: string): string {
@@ -42,30 +42,29 @@ function exportTat(receiveDate: string, closedDate: string): string {
 export default function CasesPage() {
   const {currentUser}=useAuth();const has=(code:string)=>Boolean(currentUser?.permissions.includes(code));
 
-  const [cases, setCases] = useState<Case[]>([]);
+  const [cases, setCases] = useState<CaseVisitRow[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<CaseStatusFilter>("All");
+  const [visitType,setVisitType]=useState<"All"|VisitType>("All");
+  const [bank,setBank]=useState(""); const [city,setCity]=useState(""); const [executive,setExecutive]=useState("");
+  const [companyId,setCompanyId]=useState(""); const [districtId,setDistrictId]=useState("");
+  const [dateFrom,setDateFrom]=useState(""); const [dateTo,setDateTo]=useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [exporting, setExporting] = useState(false);
   const [noCompanies,setNoCompanies]=useState(false);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [editingCase, setEditingCase] = useState<Case | null>(null);
-  const [deletingCase, setDeletingCase] = useState<Case | null>(null);
-  const [viewingCase, setViewingCase] = useState<Case | null>(null);
+  const [editingCase, setEditingCase] = useState<CaseVisitRow | null>(null);
+  const [deletingCase, setDeletingCase] = useState<CaseVisitRow | null>(null);
+  const [viewingCase, setViewingCase] = useState<CaseVisitRow | null>(null);
 
-  const initializedRef = useRef(false);
+  const pageSize = 20;
 
-  const pageSize = 10;
-
-  useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-    loadCases();
-  }, []);
+  useEffect(() => { const timer = window.setTimeout(() => void loadCases(), 250); return () => window.clearTimeout(timer); }, [search, statusFilter, visitType, bank, city, executive, companyId, districtId, dateFrom, dateTo, currentPage]);
   useEffect(()=>{void getMyAssignedCompanies().then(x=>setNoCompanies(!x.all_companies&&x.companies.length===0)).catch(()=>undefined)},[]);
 
   async function loadCases(options?: { silent?: boolean }) {
@@ -79,8 +78,13 @@ export default function CasesPage() {
 
     try {
       setError(null);
-      const data = await getCases();
-      setCases(Array.isArray(data) ? data : []);
+      const data = await getCaseVisitRows({ search: search.trim() || undefined,
+        status: statusFilter === "All" ? undefined : statusFilter, visit_type: visitType === "All" ? undefined : visitType,
+        bank: bank.trim() || undefined, city: city.trim() || undefined, executive: executive.trim() || undefined,
+        company_id: companyId ? Number(companyId) : undefined, district_id: districtId ? Number(districtId) : undefined,
+        date_from: dateFrom || undefined, date_to: dateTo || undefined, page: currentPage, page_size: pageSize });
+      setCases(Array.isArray(data.items) ? data.items : []);
+      setTotal(data.total);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -93,39 +97,11 @@ export default function CasesPage() {
     }
   }
 
-  const filteredCases = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    const safeCases = Array.isArray(cases) ? cases : [];
-
-    return safeCases.filter((item) => {
-      const statusMatch = statusFilter === "All" || item.status === statusFilter;
-
-      if (!statusMatch) {
-        return false;
-      }
-
-      if (!query) {
-        return true;
-      }
-
-      const searchableText = [
-        item.los_no,
-        item.case_no,
-        item.applicant,
-        item.mobile,
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      return searchableText.includes(query);
-    });
-  }, [cases, search, statusFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredCases.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, statusFilter]);
+  }, [search, statusFilter, visitType, bank, city, executive, companyId, districtId, dateFrom, dateTo]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -133,14 +109,8 @@ export default function CasesPage() {
     }
   }, [currentPage, totalPages]);
 
-  const paginatedCases = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    const end = start + pageSize;
-    return filteredCases.slice(start, end);
-  }, [filteredCases, currentPage]);
-
   function handleExport() {
-    if (filteredCases.length === 0) {
+    if (cases.length === 0) {
       return;
     }
 
@@ -148,6 +118,7 @@ export default function CasesPage() {
 
     const headers = [
       "LOS / Application No",
+      "Visit Type",
       "Receive Date",
       "Closed Date",
       "TAT",
@@ -162,8 +133,9 @@ export default function CasesPage() {
       "Remarks",
     ];
 
-    const rows = filteredCases.map((item) => [
+    const rows = cases.map((item) => [
       item.los_no || "",
+      item.visit_type,
       item.receive_date,
       item.closed_date,
       exportTat(item.receive_date, item.closed_date),
@@ -201,12 +173,14 @@ export default function CasesPage() {
       <CaseToolbar
         search={search}
         statusFilter={statusFilter}
-        totalCount={(cases ?? []).length}
-        filteredCount={filteredCases.length}
+        visitType={visitType} bank={bank} city={city} executive={executive} companyId={companyId} districtId={districtId} dateFrom={dateFrom} dateTo={dateTo}
+        totalCount={total}
+        filteredCount={total}
         refreshing={refreshing}
         exporting={exporting}
         onSearchChange={setSearch}
         onStatusChange={setStatusFilter}
+        onFilterChange={(name,value)=>({visitType:setVisitType,bank:setBank,city:setCity,executive:setExecutive,companyId:setCompanyId,districtId:setDistrictId,dateFrom:setDateFrom,dateTo:setDateTo}[name] as ((value:any)=>void))(value)}
         onRefresh={() => void loadCases({ silent: true })}
         onAddCase={() => setIsAddOpen(true)}
         onExport={handleExport}
@@ -214,21 +188,21 @@ export default function CasesPage() {
       />
 
       <CaseTable
-        cases={paginatedCases}
+        cases={cases}
         loading={loading}
         error={error}
         onView={(item) => setViewingCase(item)}
         onEdit={(item) => setEditingCase(item)}
         onDelete={(item) => setDeletingCase(item)}
         canEdit={has("cases.edit")}
-        canDelete={has("cases.delete")}
+        canDelete={currentUser?.role === "Admin" && has("cases.delete")}
       />
 
       <Pagination
         currentPage={currentPage}
         totalPages={totalPages}
         pageSize={pageSize}
-        totalItems={filteredCases.length}
+        totalItems={total}
         onPageChange={setCurrentPage}
       />
 

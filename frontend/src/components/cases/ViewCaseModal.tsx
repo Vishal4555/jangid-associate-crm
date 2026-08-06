@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 
 import { getCaseActivity } from "../../services/caseService";
-import type { Case, CaseActivity } from "../../types/case";
+import type { CaseVisitRow, CaseActivity } from "../../types/case";
 import StatusBadge from "./StatusBadge";
 import CaseVisitsPanel from "./CaseVisitsPanel";
 
 type Props = {
   open: boolean;
-  caseItem: Case | null;
+  caseItem: CaseVisitRow | null;
   onClose: () => void;
 };
 
@@ -91,7 +91,7 @@ export default function ViewCaseModal({ open, caseItem, onClose }: Props) {
     setActivities(null);
     setActivityError(null);
     setActivityLoading(false);
-  }, [open, caseItem?.id]);
+  }, [open, caseItem?.visit_id]);
 
   async function openTimeline() {
     setActiveTab("timeline");
@@ -100,7 +100,7 @@ export default function ViewCaseModal({ open, caseItem, onClose }: Props) {
     setActivityLoading(true);
     setActivityError(null);
     try {
-      setActivities(await getCaseActivity(caseItem.id));
+      setActivities(await getCaseActivity(caseItem.case_id));
     } catch (error) {
       setActivityError(error instanceof Error ? error.message : "Unable to load case activity.");
     } finally {
@@ -138,14 +138,13 @@ export default function ViewCaseModal({ open, caseItem, onClose }: Props) {
               </div>
               <div className="grid grid-cols-1 gap-x-8 gap-y-5 md:grid-cols-2">
                 <DetailField label="LOS / Application No" value={caseItem.los_no} />
+                <DetailField label="Visit Type" value={caseItem.visit_type} />
                 <DetailField label="Applicant" value={caseItem.applicant} />
                 <DetailField label="Receive Date" value={caseItem.receive_date} />
                 <DetailField label="Company / Agency" value={caseItem.company} />
                 <DetailField label="Bank" value={caseItem.bank} />
                 <DetailField label="District" value={caseItem.district} />
-                <DetailField label="Branch" value={caseItem.branch} />
                 <DetailField label="Loan Type" value={caseItem.loan_type} />
-                <DetailField label="Product Type" value={caseItem.product_type} />
                 <DetailField label="Executive" value={caseItem.executive} />
                 <DetailField label="Mobile" value={caseItem.mobile} />
                 <DetailField label="City" value={caseItem.city} />
@@ -159,7 +158,7 @@ export default function ViewCaseModal({ open, caseItem, onClose }: Props) {
               </div>
               <details className="rounded-lg border border-slate-200 p-4 text-sm text-slate-500">
                 <summary className="cursor-pointer font-medium">Technical details</summary>
-                <div className="mt-3"><DetailField label="Internal Case ID" value={caseItem.case_no} /></div>
+                <div className="mt-3"><DetailField label="Visit / Case ID" value={`${caseItem.visit_id} / ${caseItem.case_id}`} /></div>
               </details>
             </div>
           ) : activeTab === "visits" ? (

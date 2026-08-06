@@ -1,12 +1,12 @@
 import { AlertTriangle } from "lucide-react";
 import { useState } from "react";
 
-import { deleteCase } from "../../services/caseService";
-import type { Case } from "../../types/case";
+import { deleteCaseVisit } from "../../services/caseService";
+import type { CaseVisitRow } from "../../types/case";
 
 type Props = {
 	open: boolean;
-	caseItem: Case | null;
+	caseItem: CaseVisitRow | null;
 	onClose: () => void;
 	onDeleted: (id: number) => void;
 };
@@ -28,8 +28,8 @@ export default function DeleteCaseDialog({
 		try {
 			setError(null);
 			setIsDeleting(true);
-			await deleteCase(targetCase.id);
-			onDeleted(targetCase.id);
+			await deleteCaseVisit(targetCase.case_id, targetCase.visit_id);
+			onDeleted(targetCase.visit_id);
 			onClose();
 		} catch (deleteError) {
 			setError(
@@ -56,7 +56,7 @@ export default function DeleteCaseDialog({
 						<AlertTriangle size={20} />
 					</div>
 					<div>
-						<h2 className="text-xl font-bold text-slate-800">Delete Case</h2>
+						<h2 className="text-xl font-bold text-slate-800">Delete Visit</h2>
 						<p className="text-sm text-slate-500">This action cannot be undone.</p>
 					</div>
 				</div>
@@ -64,6 +64,7 @@ export default function DeleteCaseDialog({
 				<div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-3">
 					<p className="text-sm text-slate-600">LOS / Application No</p>
 					<p className="font-semibold text-slate-800">{targetCase.los_no || "Not available"}</p>
+					<p className="mt-1 text-sm text-slate-600">{targetCase.visit_type}</p>
 				</div>
 
 				{error && (

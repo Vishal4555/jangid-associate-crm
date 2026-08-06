@@ -25,7 +25,7 @@ export default function Pagination({
   return (
     <div className="flex justify-between items-center mt-5">
       <p className="text-sm text-gray-600">
-        Showing {startItem} to {endItem} of {totalItems} cases
+        Showing {startItem} to {endItem} of {totalItems} visits
       </p>
 
       <div className="flex items-center gap-2">

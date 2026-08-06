@@ -1,14 +1,14 @@
 import { Eye, Pencil, Trash2 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
-import type { Case } from "../../types/case";
+import type { CaseVisitRow } from "../../types/case";
 
 interface Props {
-  cases: Case[];
+  cases: CaseVisitRow[];
   loading: boolean;
   error: string | null;
-  onView: (item: Case) => void;
-  onEdit: (item: Case) => void;
-  onDelete: (item: Case) => void;
+  onView: (item: CaseVisitRow) => void;
+  onEdit: (item: CaseVisitRow) => void;
+  onDelete: (item: CaseVisitRow) => void;
   canEdit: boolean;
   canDelete: boolean;
 }
@@ -102,6 +102,7 @@ export default function CaseTable({
 
             <tr>
               <th className="p-3 text-left">LOS / Application No</th>
+              <th className="p-3 text-left">Visit Type</th>
               <th className="p-3 text-left">Receive Date</th>
               <th className="p-3 text-left">Closed Date</th>
               <th className="p-3 text-left">TAT</th>
@@ -121,11 +122,12 @@ export default function CaseTable({
             {safeCases.map((item) => (
 
               <tr
-                key={item.id}
+                key={item.visit_id}
                 className="border-b border-slate-100 transition hover:bg-orange-50/50 dark:border-slate-800 dark:hover:bg-slate-800/60"
               >
 
                 <td className="p-3 font-medium text-slate-700">{item.los_no || "Not available"}</td>
+                <td className="p-3">{item.visit_type}</td>
 
                 <td className="p-3">{item.receive_date || "-"}</td>
 
@@ -144,9 +146,9 @@ export default function CaseTable({
                   </span>
                 </td>
 
-                <td className="p-3">{item.bank || "-"}</td>
+                <td className="p-3">{[item.bank, item.company].filter(Boolean).join(" / ") || "-"}</td>
 
-                <td className="p-3">{item.city || "-"}</td>
+                <td className="p-3">{[item.district, item.city].filter(Boolean).join(" / ") || "-"}</td>
 
                 <td className="p-3">{item.executive || "-"}</td>
 

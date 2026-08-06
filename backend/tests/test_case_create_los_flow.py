@@ -46,17 +46,12 @@ class CaseCreateLosFlowTests(unittest.TestCase):
         self.assertEqual(self.db.scalar(select(func.count(Case.id))), 1)
         self.assertEqual(self.db.scalar(select(func.count(CaseVisit.id))), 2)
 
-    def test_existing_los_rejects_incompatible_company_and_bank(self):
-        create_case(self.payload(), self.db, self.user)
-        with self.assertRaises(HTTPException) as company_error:
-            create_case(self.payload(company_id=self.other_company.id), self.db, self.user)
-        self.assertEqual(company_error.exception.status_code, 409)
-        self.assertIn("Company", company_error.exception.detail)
-        with self.assertRaises(HTTPException) as bank_error:
-            create_case(self.payload(bank=self.other_bank.name), self.db, self.user)
-        self.assertEqual(bank_error.exception.status_code, 409)
-        self.assertIn("Bank", bank_error.exception.detail)
-        self.assertEqual(self.db.scalar(select(func.count(CaseVisit.id))), 1)
+    def test_same_los_with_different_company_or_bank_creates_new_parent(self):
+        create_case(self.payload(mobile="9999999999"), self.db, self.user)
+        create_case(self.payload(company_id=self.other_company.id, mobile="9999999999"), self.db, self.user)
+        create_case(self.payload(bank=self.other_bank.name, mobile="9999999999"), self.db, self.user)
+        self.assertEqual(self.db.scalar(select(func.count(Case.id))), 3)
+        self.assertEqual(self.db.scalar(select(func.count(CaseVisit.id))), 3)
 
     def test_blank_los_is_invalid(self):
         with self.assertRaises(HTTPException) as error:
