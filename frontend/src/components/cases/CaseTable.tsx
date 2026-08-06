@@ -100,23 +100,23 @@ export default function CaseTable({
     <div className="w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
       <div className="w-full overflow-x-auto">
-        <table className="w-full min-w-[1650px] table-fixed">
+        <table className="w-full min-w-[1380px] table-auto text-sm">
 
           <thead className="sticky top-0 z-10 bg-[#0F172A] text-white">
 
             <tr>
-              <th className="w-[145px] p-3 text-left whitespace-nowrap">LOS / Application No</th>
-              <th className="w-[105px] p-3 text-left whitespace-nowrap">Visit Type</th>
-              <th className="w-[105px] p-3 text-left whitespace-nowrap">Receive Date</th>
-              <th className="w-[75px] p-3 text-left whitespace-nowrap">TAT</th>
-              <th className="w-[145px] p-3 text-left">Applicant</th>
-              <th className="w-[240px] p-3 text-left">Address</th>
-              <th className="w-[210px] p-3 text-left">Company</th>
-              <th className="w-[175px] p-3 text-left">Bank / Finance Company</th>
-              <th className="w-[145px] p-3 text-left">District / City</th>
-              <th className="w-[165px] p-3 text-left">Executive</th>
-              <th className="w-[100px] p-3 text-left whitespace-nowrap">Status</th>
-              <th className="sticky right-0 z-20 w-[105px] bg-[#0F172A] p-3 text-center whitespace-nowrap">Action</th>
+              <th className="p-3 text-left whitespace-nowrap">LOS / Application No</th>
+              <th className="p-3 text-left whitespace-nowrap">Visit Type</th>
+              <th className="p-3 text-left whitespace-nowrap">Receive Date</th>
+              <th className="p-3 text-left whitespace-nowrap">TAT</th>
+              <th className="p-3 text-left">Applicant</th>
+              <th className="min-w-56 p-3 text-left">Address</th>
+              <th className="min-w-44 p-3 text-left">Company</th>
+              <th className="min-w-40 p-3 text-left">Bank / Finance Company</th>
+              <th className="p-3 text-left">District / City</th>
+              <th className="p-3 text-left">Executive</th>
+              <th className="p-3 text-left whitespace-nowrap">Status</th>
+              <th className="sticky right-0 z-20 bg-[#0F172A] p-3 text-center whitespace-nowrap">Action</th>
             </tr>
 
           </thead>
@@ -127,7 +127,7 @@ export default function CaseTable({
 
               <tr
                 key={item.visit_id}
-                className="h-[72px] border-b border-slate-100 align-top transition hover:bg-orange-50/50 dark:border-slate-800 dark:hover:bg-slate-800/60"
+                className="border-b border-slate-100 align-top transition hover:bg-orange-50/50 dark:border-slate-800 dark:hover:bg-slate-800/60"
               >
 
                 <td className="p-3 font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap" title={item.los_no}>{item.los_no || "—"}</td>
