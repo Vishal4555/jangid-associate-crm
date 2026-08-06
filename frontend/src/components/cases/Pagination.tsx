@@ -23,12 +23,12 @@ export default function Pagination({
   const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
 
   return (
-    <div className="flex justify-between items-center mt-5">
-      <p className="text-sm text-gray-600">
+    <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-slate-600 dark:text-slate-400">
         Showing {startItem} to {endItem} of {totalItems} visits
       </p>
 
-      <div className="flex items-center gap-2">
+      <div className="flex max-w-full items-center gap-2 overflow-x-auto pb-1">
 
         <button
           onClick={() => onPageChange(currentPage - 1)}

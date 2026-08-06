@@ -15,7 +15,7 @@ interface Props {
 
 function formatTurnaroundTime(receiveDate: string, closedDate: string): string {
   if (!receiveDate || !closedDate) {
-    return "-";
+    return "—";
   }
 
   function parseDateOnlyUtc(value: string): number | null {
@@ -45,11 +45,15 @@ function formatTurnaroundTime(receiveDate: string, closedDate: string): string {
   const receiveUtc = parseDateOnlyUtc(receiveDate);
   const closedUtc = parseDateOnlyUtc(closedDate);
   if (receiveUtc === null || closedUtc === null || closedUtc < receiveUtc) {
-    return "-";
+    return "—";
   }
 
   const days = Math.floor((closedUtc - receiveUtc) / 86_400_000);
-  return `${days} days`;
+  return `${days} ${days === 1 ? "day" : "days"}`;
+}
+
+function ClampedCell({ value }: { value: string }) {
+  return <span className="line-clamp-2 break-words leading-5" title={value || undefined}>{value || "—"}</span>;
 }
 
 export default function CaseTable({
@@ -69,7 +73,7 @@ export default function CaseTable({
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-10">
         <div className="flex items-center justify-center gap-3 text-slate-600">
           <span className="h-5 w-5 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
-          Loading cases...
+          Loading visits...
         </div>
       </div>
     );
@@ -86,8 +90,8 @@ export default function CaseTable({
   if (safeCases.length === 0) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-10 text-center">
-        <h3 className="text-lg font-semibold text-slate-700">No cases found</h3>
-        <p className="text-slate-500 mt-1">Try changing search or status filters.</p>
+        <h3 className="text-lg font-semibold text-slate-700">No visits found</h3>
+        <p className="text-slate-500 mt-1">Try changing or clearing the filters.</p>
       </div>
     );
   }
@@ -96,23 +100,23 @@ export default function CaseTable({
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1380px]">
+        <table className="w-full min-w-[1830px] table-fixed">
 
           <thead className="sticky top-0 z-10 bg-[#0F172A] text-white">
 
             <tr>
-              <th className="p-3 text-left">LOS / Application No</th>
-              <th className="p-3 text-left">Visit Type</th>
-              <th className="p-3 text-left">Receive Date</th>
-              <th className="p-3 text-left">Closed Date</th>
-              <th className="p-3 text-left">TAT</th>
-              <th className="p-3 text-left">Applicant</th>
-              <th className="p-3 text-left">Address</th>
-              <th className="p-3 text-left">Bank</th>
-              <th className="p-3 text-left">City</th>
-              <th className="p-3 text-left">Executive</th>
-              <th className="p-3 text-left">Status</th>
-              <th className="sticky right-0 bg-[#0F172A] p-3 text-center">Action</th>
+              <th className="w-[150px] p-3 text-left whitespace-nowrap">LOS / Application No</th>
+              <th className="w-[110px] p-3 text-left whitespace-nowrap">Visit Type</th>
+              <th className="w-[110px] p-3 text-left whitespace-nowrap">Receive Date</th>
+              <th className="w-[80px] p-3 text-left whitespace-nowrap">TAT</th>
+              <th className="w-[150px] p-3 text-left">Applicant</th>
+              <th className="w-[260px] p-3 text-left">Address</th>
+              <th className="w-[220px] p-3 text-left">Company</th>
+              <th className="w-[180px] p-3 text-left">Bank / Finance Company</th>
+              <th className="w-[150px] p-3 text-left">District / City</th>
+              <th className="w-[180px] p-3 text-left">Executive</th>
+              <th className="w-[110px] p-3 text-left whitespace-nowrap">Status</th>
+              <th className="sticky right-0 w-[110px] bg-[#0F172A] p-3 text-center whitespace-nowrap">Action</th>
             </tr>
 
           </thead>
@@ -123,40 +127,33 @@ export default function CaseTable({
 
               <tr
                 key={item.visit_id}
-                className="border-b border-slate-100 transition hover:bg-orange-50/50 dark:border-slate-800 dark:hover:bg-slate-800/60"
+                className="h-[72px] border-b border-slate-100 align-top transition hover:bg-orange-50/50 dark:border-slate-800 dark:hover:bg-slate-800/60"
               >
 
-                <td className="p-3 font-medium text-slate-700">{item.los_no || "Not available"}</td>
-                <td className="p-3">{item.visit_type}</td>
+                <td className="p-3 font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap" title={item.los_no}>{item.los_no || "—"}</td>
+                <td className="p-3 whitespace-nowrap">{item.visit_type}</td>
 
-                <td className="p-3">{item.receive_date || "-"}</td>
+                <td className="p-3 whitespace-nowrap">{item.receive_date || "—"}</td>
 
-                <td className="p-3">{item.closed_date || "-"}</td>
+                <td className="p-3 whitespace-nowrap">{formatTurnaroundTime(item.receive_date, item.closed_date)}</td>
 
-                <td className="p-3">{formatTurnaroundTime(item.receive_date, item.closed_date)}</td>
+                <td className="p-3"><ClampedCell value={item.applicant} /></td>
 
-                <td className="p-3">{item.applicant || "-"}</td>
+                <td className="p-3"><ClampedCell value={item.address} /></td>
 
-                <td className="max-w-72 p-3">
-                  <span
-                    className="block truncate whitespace-nowrap"
-                    title={item.address || undefined}
-                  >
-                    {item.address || "-"}
-                  </span>
-                </td>
+                <td className="p-3"><ClampedCell value={item.company} /></td>
 
-                <td className="p-3">{[item.bank, item.company].filter(Boolean).join(" / ") || "-"}</td>
+                <td className="p-3"><ClampedCell value={item.bank} /></td>
 
-                <td className="p-3">{[item.district, item.city].filter(Boolean).join(" / ") || "-"}</td>
+                <td className="p-3"><ClampedCell value={[item.district, item.city].filter(Boolean).join(" / ")} /></td>
 
-                <td className="p-3">{item.executive || "-"}</td>
+                <td className="p-3"><ClampedCell value={item.executive} /></td>
 
-                <td className="p-3">
+                <td className="p-3 whitespace-nowrap">
                   <StatusBadge status={item.status} />
                 </td>
 
-                <td className="sticky right-0 bg-white p-3 dark:bg-slate-900">
+                <td className="sticky right-0 bg-white p-3 whitespace-nowrap dark:bg-slate-900">
 
                   <div className="flex justify-center gap-2">
 

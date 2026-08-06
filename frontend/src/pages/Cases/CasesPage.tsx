@@ -10,8 +10,10 @@ import DeleteCaseDialog from "../../components/cases/DeleteCaseDialog";
 import ViewCaseModal from "../../components/cases/ViewCaseModal";
 
 import { getCaseVisitRows } from "../../services/caseService";
+import { listMasters } from "../../services/masterService";
 import { getMyAssignedCompanies } from "../../services/userService";
 import type { CaseVisitRow, CaseStatusFilter, VisitType } from "../../types/case";
+import type { Bank, Company, District, Executive } from "../../types/master";
 import { useAuth } from "../../context/AuthContext";
 
 function exportTat(receiveDate: string, closedDate: string): string {
@@ -53,6 +55,8 @@ export default function CasesPage() {
   const [bank,setBank]=useState(""); const [city,setCity]=useState(""); const [executive,setExecutive]=useState("");
   const [companyId,setCompanyId]=useState(""); const [districtId,setDistrictId]=useState("");
   const [dateFrom,setDateFrom]=useState(""); const [dateTo,setDateTo]=useState("");
+  const [companies,setCompanies]=useState<Company[]>([]); const [banks,setBanks]=useState<Bank[]>([]);
+  const [districts,setDistricts]=useState<District[]>([]); const [executives,setExecutives]=useState<Executive[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [exporting, setExporting] = useState(false);
   const [noCompanies,setNoCompanies]=useState(false);
@@ -66,6 +70,33 @@ export default function CasesPage() {
 
   useEffect(() => { const timer = window.setTimeout(() => void loadCases(), 250); return () => window.clearTimeout(timer); }, [search, statusFilter, visitType, bank, city, executive, companyId, districtId, dateFrom, dateTo, currentPage]);
   useEffect(()=>{void getMyAssignedCompanies().then(x=>setNoCompanies(!x.all_companies&&x.companies.length===0)).catch(()=>undefined)},[]);
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all([
+      listMasters("companies", { all: true, activeOnly: true }),
+      listMasters("banks", { all: true }),
+      listMasters("districts", { all: true, activeOnly: true }),
+      listMasters("executives", { all: true, activeOnly: true }),
+    ]).then(([companyData, bankData, districtData, executiveData]) => {
+      if (cancelled) return;
+      setCompanies(companyData.items); setBanks(bankData.items); setDistricts(districtData.items); setExecutives(executiveData.items);
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  function clearFilters() {
+    setSearch(""); setStatusFilter("All"); setVisitType("All"); setBank(""); setCity("");
+    setExecutive(""); setCompanyId(""); setDistrictId(""); setDateFrom(""); setDateTo(""); setCurrentPage(1);
+  }
+
+  function changeFilter(name: "visitType" | "bank" | "city" | "executive" | "companyId" | "districtId" | "dateFrom" | "dateTo", value: string) {
+    const setters: Record<typeof name, (next: string) => void> = {
+      visitType: next => setVisitType(next as "All" | VisitType), bank: setBank, city: setCity,
+      executive: setExecutive, companyId: setCompanyId, districtId: setDistrictId,
+      dateFrom: setDateFrom, dateTo: setDateTo,
+    };
+    setters[name](value);
+  }
 
   async function loadCases(options?: { silent?: boolean }) {
     const silent = Boolean(options?.silent);
@@ -174,13 +205,14 @@ export default function CasesPage() {
         search={search}
         statusFilter={statusFilter}
         visitType={visitType} bank={bank} city={city} executive={executive} companyId={companyId} districtId={districtId} dateFrom={dateFrom} dateTo={dateTo}
+        companies={companies} banks={banks} districts={districts} executives={executives}
         totalCount={total}
-        filteredCount={total}
         refreshing={refreshing}
         exporting={exporting}
         onSearchChange={setSearch}
         onStatusChange={setStatusFilter}
-        onFilterChange={(name,value)=>({visitType:setVisitType,bank:setBank,city:setCity,executive:setExecutive,companyId:setCompanyId,districtId:setDistrictId,dateFrom:setDateFrom,dateTo:setDateTo}[name] as ((value:any)=>void))(value)}
+        onFilterChange={changeFilter}
+        onClearFilters={clearFilters}
         onRefresh={() => void loadCases({ silent: true })}
         onAddCase={() => setIsAddOpen(true)}
         onExport={handleExport}
