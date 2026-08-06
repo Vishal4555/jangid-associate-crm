@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { subscribeCasesChanged } from "../../services/caseChangeEvents";
 import { getDashboardPerformance } from "../../services/dashboardService";
 import type { DashboardPerformance, PerformanceFilters } from "../../types/dashboard";
+import { FilterCard, PageHeader } from "../ui";
 
 const EMPTY_FILTERS: PerformanceFilters = {
   from_date: "",
@@ -199,20 +200,12 @@ export default function PerformanceSection() {
   }
 
   return (
-    <section className="space-y-6" aria-labelledby="performance-heading">
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-[.2em] text-orange-600">Performance</p>
-        <h2 id="performance-heading" className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
-          Executive Performance
-        </h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Case outcomes and turnaround time by executive, city, and bank.
-        </p>
-      </div>
+    <section className="space-y-4" aria-labelledby="performance-heading">
+      <PageHeader eyebrow="Performance" title="Executive Performance" subtitle="Case outcomes and turnaround time by executive, city, and bank." />
 
-      <form
+      <FilterCard
         onSubmit={applyFilters}
-        className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-4 dark:border-slate-800 dark:bg-slate-900"
+        className="xl:grid-cols-4"
       >
         <input type="date" aria-label="From date" value={draftFilters.from_date ?? ""} onChange={(event) => updateFilter("from_date", event.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-800" />
         <input type="date" aria-label="To date" value={draftFilters.to_date ?? ""} onChange={(event) => updateFilter("to_date", event.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-800" />
@@ -222,7 +215,7 @@ export default function PerformanceSection() {
         <button type="submit" className="rounded-xl bg-orange-600 px-4 py-2 font-medium text-white hover:bg-orange-700">Apply</button>
         <button type="button" onClick={clearFilters} className="rounded-xl border border-slate-200 px-4 py-2 font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Clear</button>
         <button type="button" onClick={exportExcel} disabled={!hasData || loading || exporting} className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-2 font-medium text-orange-700 hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-orange-900 dark:bg-orange-500/10 dark:text-orange-300">{exporting ? "Exporting…" : "Export Excel"}</button>
-      </form>
+      </FilterCard>
 
       {error && <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
 

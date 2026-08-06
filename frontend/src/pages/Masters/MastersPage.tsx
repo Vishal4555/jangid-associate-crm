@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import DashboardLayout from "../../layouts/DashboardLayout";
+import { Card, DataTable, PageHeader, Tabs } from "../../components/ui";
 import { useAuth } from "../../context/AuthContext";
 import { listMasters, createMasterRecord, updateMasterRecord, deleteMasterRecord } from "../../services/masterService";
 import type {
@@ -386,22 +387,12 @@ export default function MastersPage() {
 
   return (
     <DashboardLayout>
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm uppercase tracking-[0.32em] text-slate-500">Masters</p>
-          <h1 className="mt-2 text-3xl font-semibold text-slate-900">Reference Data</h1>
-          <p className="mt-2 text-sm text-slate-600">
-            Maintain global banks / finance companies, branches, executives, loan types, and product types in one place.
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-right shadow-sm">
+      <PageHeader eyebrow="Masters" title="Reference Data" subtitle="Maintain global banks / finance companies, branches, executives, loan types, and product types in one place." actions={<Card className="py-2 text-right">
           <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Access</p>
           <p className="mt-1 text-sm font-semibold text-slate-800">{currentUser.role}</p>
-        </div>
-      </div>
+        </Card>} />
 
-      <div className="mb-6 flex flex-wrap gap-3">
+      <Tabs className="mb-4">
         {tabs.map((tab) => (
           <button
             key={tab.key}
@@ -423,7 +414,7 @@ export default function MastersPage() {
             </div>
           </button>
         ))}
-      </div>
+      </Tabs>
 
       <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-4 border-b border-slate-200 p-5 lg:flex-row lg:items-center lg:justify-between">
@@ -468,7 +459,7 @@ export default function MastersPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <DataTable className="rounded-t-none border-0 shadow-none">
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr>
@@ -541,7 +532,7 @@ export default function MastersPage() {
               )}
             </tbody>
           </table>
-        </div>
+        </DataTable>
 
         <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 text-sm text-slate-600 lg:flex-row lg:items-center lg:justify-between">
           <p>

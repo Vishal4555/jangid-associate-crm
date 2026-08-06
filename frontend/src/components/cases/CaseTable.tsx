@@ -1,6 +1,7 @@
 import { Eye, Pencil, Trash2 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 import type { CaseVisitRow } from "../../types/case";
+import { Alert, DataTable, EmptyState } from "../ui";
 
 interface Props {
   cases: CaseVisitRow[];
@@ -70,7 +71,7 @@ export default function CaseTable({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-10">
+      <div className="ui-card p-8">
         <div className="flex items-center justify-center gap-3 text-slate-600">
           <span className="h-5 w-5 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
           Loading visits...
@@ -81,25 +82,23 @@ export default function CaseTable({
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700">
+      <Alert>
         {error}
-      </div>
+      </Alert>
     );
   }
 
   if (safeCases.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-10 text-center">
+      <EmptyState>
         <h3 className="text-lg font-semibold text-slate-700">No visits found</h3>
         <p className="text-slate-500 mt-1">Try changing or clearing the filters.</p>
-      </div>
+      </EmptyState>
     );
   }
 
   return (
-    <div className="w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-
-      <div className="w-full overflow-x-auto">
+    <DataTable>
         <table className="w-full min-w-[1380px] table-auto text-sm">
 
           <thead className="sticky top-0 z-10 bg-[#0F172A] text-white">
@@ -195,8 +194,6 @@ export default function CaseTable({
           </tbody>
 
         </table>
-      </div>
-
-    </div>
+    </DataTable>
   );
 }

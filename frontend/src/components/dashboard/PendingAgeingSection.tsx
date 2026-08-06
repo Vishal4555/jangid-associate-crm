@@ -45,7 +45,7 @@ export default function PendingAgeingSection() {
   const headings = ["Name", "Total Pending", "0–2", "3–5", "6–10", "11+"];
 
   return (
-    <section className="mt-8 space-y-5" aria-labelledby="pending-ageing-heading">
+    <section className="mt-6 space-y-4" aria-labelledby="pending-ageing-heading">
       <div>
         <p className="text-sm font-semibold uppercase tracking-[.2em] text-orange-600">Attention needed</p>
         <h2 id="pending-ageing-heading" className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">Pending Case Ageing</h2>
@@ -55,7 +55,7 @@ export default function PendingAgeingSection() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {cards.map(([key, label, color]) => (
-          <article key={key} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <article key={key} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <p className="text-sm font-medium text-slate-500">{label}</p>
             <p className={`mt-2 text-3xl font-bold ${color}`}>{loading ? "…" : ageing?.summary[key] ?? 0}</p>
           </article>
@@ -65,7 +65,7 @@ export default function PendingAgeingSection() {
       {!loading && ageing?.summary.total_pending === 0 ? (
         <p className="rounded-2xl border border-slate-200 bg-white px-6 py-10 text-center text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900">No pending cases.</p>
       ) : (
-        <div className="grid gap-6 xl:grid-cols-2">
+        <div className="grid gap-4 xl:grid-cols-2">
           {(["Executive", "City"] as const).map((kind) => {
             const rows = kind === "Executive"
               ? ageing?.executives.map((row) => ({ ...row, name: row.executive }))

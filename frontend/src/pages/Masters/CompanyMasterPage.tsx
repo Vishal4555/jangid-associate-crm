@@ -4,6 +4,7 @@ import DashboardLayout from "../../layouts/DashboardLayout";
 import { createMasterRecord, listMasters, updateMasterRecord } from "../../services/masterService";
 import type { Company, District } from "../../types/master";
 import { useAuth } from "../../context/AuthContext";
+import { Alert, DataTable, FilterCard, PageHeader, Tabs } from "../../components/ui";
 
 type Tab = "companies" | "districts";
 const control = "w-full rounded-xl border bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900";
@@ -56,12 +57,12 @@ export default function CompanyMasterPage() {
     }
   };
 
-  return <DashboardLayout><section className={`space-y-5 ${canManage?"":"[&_th:last-child]:hidden [&_td:last-child]:hidden"}`}>
-    <div><p className="text-sm font-semibold uppercase tracking-[.2em] text-orange-600">Masters</p><h1 className="text-3xl font-bold">Companies &amp; Rajasthan Districts</h1></div>
-    <div className="flex flex-wrap gap-2">{(["companies","districts"] as Tab[]).map(item=><button key={item} onClick={()=>{setTab(item);setMessage("");setError("")}} className={`rounded-xl px-4 py-2 ${tab===item?"bg-slate-900 text-white":"border"}`}>{item==="companies"?"Companies / Agencies":"Rajasthan Districts"}</button>)}</div>
-    {error&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-red-700">{error}</p>}
-    {message&&<p role="status" className="rounded-xl bg-green-50 p-3 text-green-700">{message}</p>}
-    {canManage&&<form onSubmit={add} className="grid gap-3 rounded-2xl border bg-white p-4 md:grid-cols-3 dark:border-slate-700 dark:bg-slate-900">
+  return <DashboardLayout><section className={`space-y-4 ${canManage?"":"[&_th:last-child]:hidden [&_td:last-child]:hidden"}`}>
+    <PageHeader eyebrow="Masters" title="Companies &amp; Rajasthan Districts" subtitle="Manage source companies and service districts." />
+    <Tabs>{(["companies","districts"] as Tab[]).map(item=><button role="tab" aria-selected={tab===item} key={item} onClick={()=>{setTab(item);setMessage("");setError("")}} className={`rounded-xl border px-4 py-2 ${tab===item?"border-slate-900 bg-slate-900 text-white":"border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"}`}>{item==="companies"?"Companies / Agencies":"Rajasthan Districts"}</button>)}</Tabs>
+    {error&&<Alert>{error}</Alert>}
+    {message&&<Alert tone="success">{message}</Alert>}
+    {canManage&&<FilterCard onSubmit={add} className="md:grid-cols-3">
       {tab==="companies"?<>
         <input required placeholder="Company name" className={control} value={company.name} onChange={event=>setCompany({...company,name:event.target.value})}/>
         <input placeholder="Code" className={control} value={company.code} onChange={event=>setCompany({...company,code:event.target.value})}/>
@@ -75,9 +76,9 @@ export default function CompanyMasterPage() {
         <input readOnly className={control} value="Rajasthan"/>
       </>}
       <button className="rounded-xl bg-orange-600 px-4 py-2 text-white">Add</button>
-    </form>}
-    <div className="overflow-x-auto rounded-2xl border bg-white dark:border-slate-700 dark:bg-slate-900"><table className="w-full min-w-[760px] text-sm"><thead className="bg-slate-900 text-white"><tr>{(tab==="companies"?["NAME","SOURCE","CONTACT","EMAIL","MOBILE","ACTIVE","ACTION"]:["DISTRICT","STATE","ACTIVE","ACTION"]).map(item=><th key={item} className="p-3 text-left">{item}</th>)}</tr></thead><tbody>
+    </FilterCard>}
+    <DataTable><table className="min-w-[760px]"><thead><tr>{(tab==="companies"?["NAME","SOURCE","CONTACT","EMAIL","MOBILE","ACTIVE","ACTION"]:["DISTRICT","STATE","ACTIVE","ACTION"]).map(item=><th key={item} className="text-left">{item}</th>)}</tr></thead><tbody>
       {tab==="companies"?companies.map(item=><tr key={item.id} className="border-b dark:border-slate-800"><td className="p-3">{item.name}</td><td className="p-3">{item.source_type}</td><td className="p-3">{item.contact_person||"—"}</td><td className="p-3">{item.email||"—"}</td><td className="p-3">{item.mobile||"—"}</td><td className="p-3">{item.is_active?"Active":"Inactive"}</td><td className="p-3"><button onClick={()=>void updateMasterRecord("companies",item.id,{is_active:!item.is_active}).then(load)} className="text-orange-600">{item.is_active?"Deactivate":"Activate"}</button></td></tr>):districts.map(item=><tr key={item.id} className="border-b dark:border-slate-800"><td className="p-3">{item.name}</td><td className="p-3">{item.state}</td><td className="p-3">{item.is_active?"Active":"Inactive"}</td><td className="p-3"><button onClick={()=>void updateMasterRecord("districts",item.id,{is_active:!item.is_active}).then(load)} className="text-orange-600">{item.is_active?"Deactivate":"Activate"}</button></td></tr>)}
-    </tbody></table></div>
+    </tbody></table></DataTable>
   </section></DashboardLayout>;
 }
