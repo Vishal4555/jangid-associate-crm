@@ -97,26 +97,26 @@ export default function CaseTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className="w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1830px] table-fixed">
+      <div className="w-full overflow-x-auto">
+        <table className="w-full min-w-[1650px] table-fixed">
 
           <thead className="sticky top-0 z-10 bg-[#0F172A] text-white">
 
             <tr>
-              <th className="w-[150px] p-3 text-left whitespace-nowrap">LOS / Application No</th>
-              <th className="w-[110px] p-3 text-left whitespace-nowrap">Visit Type</th>
-              <th className="w-[110px] p-3 text-left whitespace-nowrap">Receive Date</th>
-              <th className="w-[80px] p-3 text-left whitespace-nowrap">TAT</th>
-              <th className="w-[150px] p-3 text-left">Applicant</th>
-              <th className="w-[260px] p-3 text-left">Address</th>
-              <th className="w-[220px] p-3 text-left">Company</th>
-              <th className="w-[180px] p-3 text-left">Bank / Finance Company</th>
-              <th className="w-[150px] p-3 text-left">District / City</th>
-              <th className="w-[180px] p-3 text-left">Executive</th>
-              <th className="w-[110px] p-3 text-left whitespace-nowrap">Status</th>
-              <th className="sticky right-0 w-[110px] bg-[#0F172A] p-3 text-center whitespace-nowrap">Action</th>
+              <th className="w-[145px] p-3 text-left whitespace-nowrap">LOS / Application No</th>
+              <th className="w-[105px] p-3 text-left whitespace-nowrap">Visit Type</th>
+              <th className="w-[105px] p-3 text-left whitespace-nowrap">Receive Date</th>
+              <th className="w-[75px] p-3 text-left whitespace-nowrap">TAT</th>
+              <th className="w-[145px] p-3 text-left">Applicant</th>
+              <th className="w-[240px] p-3 text-left">Address</th>
+              <th className="w-[210px] p-3 text-left">Company</th>
+              <th className="w-[175px] p-3 text-left">Bank / Finance Company</th>
+              <th className="w-[145px] p-3 text-left">District / City</th>
+              <th className="w-[165px] p-3 text-left">Executive</th>
+              <th className="w-[100px] p-3 text-left whitespace-nowrap">Status</th>
+              <th className="sticky right-0 z-20 w-[105px] bg-[#0F172A] p-3 text-center whitespace-nowrap">Action</th>
             </tr>
 
           </thead>
@@ -153,7 +153,7 @@ export default function CaseTable({
                   <StatusBadge status={item.status} />
                 </td>
 
-                <td className="sticky right-0 bg-white p-3 whitespace-nowrap dark:bg-slate-900">
+                <td className="sticky right-0 z-10 bg-white p-3 whitespace-nowrap dark:bg-slate-900">
 
                   <div className="flex justify-center gap-2">
 

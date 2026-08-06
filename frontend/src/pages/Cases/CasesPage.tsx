@@ -197,7 +197,9 @@ export default function CasesPage() {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout fullWidth>
+
+      <div className="w-full min-w-0">
 
       {noCompanies&&<p className="mb-4 rounded-xl bg-amber-50 p-4 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">No companies assigned. Contact Admin.</p>}
 
@@ -272,6 +274,8 @@ export default function CasesPage() {
         caseItem={viewingCase}
         onClose={() => setViewingCase(null)}
       />
+
+      </div>
 
     </DashboardLayout>
   );

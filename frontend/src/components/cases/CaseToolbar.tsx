@@ -30,14 +30,14 @@ export default function CaseToolbar(props: Props) {
         <button onClick={props.onExport} disabled={props.exporting} className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-slate-700 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"><Download size={18}/>{props.exporting ? "Exporting..." : "Export"}</button>
       </div>
     </div>
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
       <Field label="Search" wide><div className="relative"><Search className="absolute left-3 top-3 text-slate-400" size={18}/><input value={props.search} onChange={e=>props.onSearchChange(e.target.value)} placeholder="LOS, applicant, mobile, address..." className={`${fieldClass} pl-10`}/></div></Field>
       <Field label="Status"><select value={props.statusFilter} onChange={e=>props.onStatusChange(e.target.value as CaseStatusFilter)} className={fieldClass}><option value="All">All statuses</option><option>Pending</option><option>Positive</option><option>Negative</option></select></Field>
       <Field label="Visit Type"><select value={props.visitType} onChange={e=>props.onFilterChange("visitType",e.target.value)} className={fieldClass}><option value="All">All visit types</option>{["Residence","Office","Permanent","Business","Other"].map(x=><option key={x}>{x}</option>)}</select></Field>
       <Field label="Company"><select value={props.companyId} onChange={e=>props.onFilterChange("companyId",e.target.value)} className={fieldClass}><option value="">All companies</option>{props.companies.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></Field>
       <Field label="Bank / Finance Company"><select value={props.bank} onChange={e=>props.onFilterChange("bank",e.target.value)} className={fieldClass}><option value="">All banks</option>{props.banks.map(x=><option key={x.id} value={x.name}>{x.name}</option>)}</select></Field>
     </div>
-    <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+    <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
       <Field label="District"><select value={props.districtId} onChange={e=>props.onFilterChange("districtId",e.target.value)} className={fieldClass}><option value="">All districts</option>{props.districts.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></Field>
       <Field label="City"><input value={props.city} onChange={e=>props.onFilterChange("city",e.target.value)} placeholder="Enter city" className={fieldClass}/></Field>
       <Field label="Executive"><select value={props.executive} onChange={e=>props.onFilterChange("executive",e.target.value)} className={fieldClass}><option value="">All executives</option>{props.executives.map(x=><option key={x.id} value={x.full_name}>{x.full_name}</option>)}</select></Field>
