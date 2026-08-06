@@ -18,11 +18,32 @@ from app.services.billing_service import (bulk_create, bulk_preview, create_bill
     list_billing, update_billing)
 from app.services.monthly_billing_service import (monthly_billing, save_payment_register, month_status,
     finalize_month, reopen_month, save_bank_payment, billing_dashboard)
+from app.schemas.billing_reports import CompanyBillingReport, ExecutivePerformanceReport
+from app.services.billing_report_service import company_report, executive_report
 
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 access = Depends(require_permission("billing.view"))
 payment_access = Depends(require_permission("billing.payment_register"))
+
+
+@router.get("/reports/company", response_model=CompanyBillingReport)
+def read_company_report(company_id: int, date_from: date, date_to: date, bank: str | None = None,
+    district_id: int | None = None, city: str | None = None, executive: str | None = None,
+    visit_type: str | None = None, status: str | None = None, payment_status: str | None = None,
+    db: Session = Depends(get_db), user: User = Depends(require_permission("billing.company_export"))):
+    return company_report(db, user, assigned_company_ids(user), company_id, date_from, date_to,
+        bank=bank, district_id=district_id, city=city, executive=executive, visit_type=visit_type,
+        status=status, payment_status=payment_status)
+
+
+@router.get("/reports/executive", response_model=ExecutivePerformanceReport)
+def read_executive_report(date_from: date, date_to: date, executive: str | None = None,
+    company_id: int | None = None, bank: str | None = None, district_id: int | None = None,
+    city: str | None = None, status: str | None = None, db: Session = Depends(get_db),
+    user: User = Depends(require_permission("billing.executive_report"))):
+    return executive_report(db, user, assigned_company_ids(user), date_from, date_to,
+        executive=executive, company_id=company_id, bank=bank, district_id=district_id, city=city, status=status)
 
 
 def _executive_scope(user: User) -> str | None:

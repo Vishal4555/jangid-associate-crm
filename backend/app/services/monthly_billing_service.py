@@ -333,7 +333,14 @@ def _replace_snapshots(db: Session, period: BillingMonth, report: MonthlyBilling
             balance_amount=net-paid, payment_status=_derived_status(paid, net), bank_counts=row.bank_counts,
             rate_status=row.rate_status, remarks=payment.remarks if payment else None))
     for row in report.bank_billing:
-        db.add(BankMonthlyBillingSnapshot(billing_month_id=period.id, case_id=row.case_id, date=row.date,
+        source = None
+        if row.visit_id is not None:
+            visit = db.get(CaseVisit, row.visit_id); case = db.get(Case, row.case_id)
+            if visit is not None and case is not None: source = VisitBillingItem(case, visit)
+        executive_match = resolve_monthly_executive_rate(db, source) if source is not None else RateMatch("MISSING")
+        db.add(BankMonthlyBillingSnapshot(billing_month_id=period.id, case_id=row.case_id, visit_id=row.visit_id,
+            visit_type=row.visit_type, executive=source.executive if source is not None else None,
+            executive_rate=executive_match.amount, executive_rate_status=executive_match.status, date=row.date,
             company=row.company, bank=row.bank, los_no=row.los_no, applicant=row.name, address=row.address,
             district=row.district, city=row.city,
             mobile=row.mobile, case_status=row.status, remark=row.remark, rate=row.rate or Decimal(), rate_status=row.rate_status,

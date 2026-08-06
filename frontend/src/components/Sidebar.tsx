@@ -24,6 +24,8 @@ type SidebarPath =
   | "/billing/executive-rates"
   | "/billing/bank-rates"
   | "/billing/dashboard"
+  | "/billing/company-export"
+  | "/billing/executive-report"
   | "/search"
   | "/reports"
   | "/masters"
@@ -46,6 +48,8 @@ const menus: MenuItem[] = [
   { icon: Layers3, name: "Bank Rate Master", path: "/billing/bank-rates", permissions: ["billing.rate_master"] },
   { icon: ReceiptIndianRupee, name: "Payment Register", path: "/billing/payment-register", permissions: ["billing.payment_register"] },
   { icon: BarChart3, name: "Billing Dashboard", path: "/billing/dashboard", permissions: ["billing.dashboard"] },
+  { icon: ReceiptIndianRupee, name: "Company Billing Export", path: "/billing/company-export", permissions: ["billing.company_export"] },
+  { icon: BarChart3, name: "Executive Performance Report", path: "/billing/executive-report", permissions: ["billing.executive_report"] },
   { icon: Search, name: "Search", path: "/search", permissions: ["search.view"] },
   { icon: BarChart3, name: "Reports", path: "/reports", permissions: ["reports.view","reports.view_own"] },
   { icon: Layers3, name: "Masters", path: "/masters", permissions: ["masters.view","masters.view_assigned_companies"] },

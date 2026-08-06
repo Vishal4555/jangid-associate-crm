@@ -9,6 +9,7 @@ const CasesPage = lazy(() => import("../pages/Cases/CasesPage"));
 const BillingPage = lazy(() => import("../pages/Billing/BillingPage"));
 const RateMastersPage = lazy(() => import("../pages/Billing/RateMastersPage"));
 const BillingDashboardPage = lazy(() => import("../pages/Billing/BillingDashboardPage"));
+const BillingReportsPage = lazy(() => import("../pages/Billing/BillingReportsPage"));
 const MastersPage = lazy(() => import("../pages/Masters"));
 const CompanyMasterPage = lazy(() => import("../pages/Masters/CompanyMasterPage"));
 const SearchPage = lazy(() => import("../pages/Search/SearchPage"));
@@ -90,6 +91,8 @@ export default function AppRoutes() {
         <Route path="/billing/executive-rates" element={<PermissionRoute permissions={["billing.rate_master"]}><RateMastersPage /></PermissionRoute>} />
         <Route path="/billing/bank-rates" element={<PermissionRoute permissions={["billing.rate_master"]}><RateMastersPage /></PermissionRoute>} />
         <Route path="/billing/dashboard" element={<PermissionRoute permissions={["billing.dashboard"]}><BillingDashboardPage /></PermissionRoute>} />
+        <Route path="/billing/company-export" element={<PermissionRoute permissions={["billing.company_export"]}><BillingReportsPage kind="company" /></PermissionRoute>} />
+        <Route path="/billing/executive-report" element={<PermissionRoute permissions={["billing.executive_report"]}><BillingReportsPage kind="executive" /></PermissionRoute>} />
         <Route path="/billing/rates" element={<Navigate to="/billing/executive-rates" replace />} />
         <Route path="/users" element={<PermissionRoute permissions={["users.view"]}><UsersPage /></PermissionRoute>} />
         <Route path="/settings" element={<PermissionRoute permissions={["settings.view"]}><SettingsPage /></PermissionRoute>} />

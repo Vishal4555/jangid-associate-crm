@@ -32,6 +32,8 @@ PERMISSION_CATALOG = (
     ("billing.rate_master", "Manage rate masters", "View and manage payout rate masters", "Billing"),
     ("billing.payment_register", "Manage payment register", "Update Executive and bank payments", "Billing"),
     ("billing.dashboard", "View billing dashboard", "View billing dashboard", "Billing"),
+    ("billing.company_export", "Company billing export", "Preview and export scoped company billing", "Billing"),
+    ("billing.executive_report", "Executive performance report", "Preview and export scoped Executive performance", "Billing"),
     ("billing.finalize", "Finalize billing", "Finalize billing months", "Billing"),
     ("billing.reopen", "Reopen billing", "Reopen finalized billing months", "Billing"),
     ("billing.regenerate", "Regenerate billing", "Regenerate reopened billing snapshots", "Billing"),
