@@ -18,6 +18,7 @@ import { getDashboardSummary, getEmptyDashboardSummary } from "../../services/da
 import { getTodayFollowUps, getUpcomingFollowUps } from "../../services/followUpService";
 import type { CaseVisitRow } from "../../types/case";
 import type { DashboardSummary } from "../../types/dashboard";
+import { PageHeader } from "../../components/ui";
 
 
 function formatFollowUp(value: string) {
@@ -88,8 +89,9 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
-      <section className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+      <PageHeader eyebrow="Overview" title="Business dashboard" subtitle="A clear view of your cases, team activity, and workflow health." />
+      <section className="mb-4 flex justify-end">
+        <div className="hidden">
           <p className="text-sm font-semibold uppercase tracking-[.2em] text-orange-600">
             Overview
           </p>

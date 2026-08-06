@@ -1,0 +1,12 @@
+[1mdiff --git a/backend/app/main.py b/backend/app/main.py[m
+[1mindex c12e625..41fc43d 100644[m
+[1m--- a/backend/app/main.py[m
+[1m+++ b/backend/app/main.py[m
+[36m@@ -122,6 +122,7 @@[m [mapp.include_router(masters_router, prefix="/api")[m
+ app.include_router(dashboard_router, prefix="/api")[m
+ app.include_router(users_router, prefix="/api")[m
+ app.include_router(follow_ups_router)[m
+[32m+[m[32mapp.include_router(follow_ups_router, prefix="/api", include_in_schema=False)[m
+ [m
+ if (FRONTEND_DIST_DIR / "assets").exists():[m
+     app.mount([m

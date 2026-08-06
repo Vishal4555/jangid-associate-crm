@@ -1,0 +1,13 @@
+frontend/src/components/cases/CaseTable.tsx
+frontend/src/components/cases/CaseToolbar.tsx
+frontend/src/components/dashboard/PendingAgeingSection.tsx
+frontend/src/components/dashboard/PerformanceSection.tsx
+frontend/src/components/ui/index.tsx
+frontend/src/index.css
+frontend/src/layouts/DashboardLayout.tsx
+frontend/src/pages/Billing/BillingDashboardPage.tsx
+frontend/src/pages/Masters/CompanyMasterPage.tsx
+frontend/src/pages/Masters/MastersPage.tsx
+frontend/src/pages/Search/SearchPage.tsx
+frontend/src/pages/Settings/SettingsPage.tsx
+frontend/src/pages/Users/UsersPage.tsx

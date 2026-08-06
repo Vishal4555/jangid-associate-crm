@@ -12,7 +12,7 @@ from app.models.case_visit import CaseVisit
 from app.models.master import Company, Executive
 from app.models.user import User
 from app.schemas.billing_reports import (CompanyBillingReport, CompanyBillingReportRow,
-    ExecutiveBankSummaryRow, ExecutivePerformanceReport, ExecutiveSummaryRow, ReportMetadata)
+    ExecutiveBankSummaryRow, ExecutivePerformanceReport, ExecutiveSummaryRow, ExecutiveVisitDetail, ReportMetadata)
 from app.services.monthly_billing_service import (VisitBillingItem, resolve_monthly_bank_rate,
     resolve_monthly_executive_rate)
 from app.services.payout_rate_service import normalized
@@ -87,11 +87,19 @@ def company_report(db: Session, user: User, company_ids, company_id: int | None,
             company_rate=snapshot.rate if snapshot else bank_rate.amount,
             company_rate_status=snapshot.rate_status if snapshot else bank_rate.status, payment_status=payment))
     metadata = _metadata(db, date_from, date_to)
-    return CompanyBillingReport(items=rows, totals={"rows": len(rows),
-        "executive_rate_total": sum((x.executive_rate for x in rows if x.executive_rate is not None), Decimal()),
-        "company_rate_total": sum((x.company_rate for x in rows if x.company_rate is not None), Decimal()),
-        "missing_executive_rates": sum(x.executive_rate is None for x in rows),
-        "missing_company_rates": sum(x.company_rate is None for x in rows)},
+    register_keys = {(item.receive_date.replace(day=1), item.company or "", item.bank or "", item.district or "") for item in items}
+    registers = db.scalars(select(BankMonthlyPayment).where(BankMonthlyPayment.billing_month.between(
+        date_from.replace(day=1), date_to.replace(day=1)), BankMonthlyPayment.company == db.get(Company, company_id).name)).all()
+    relevant_registers = [x for x in registers if (x.billing_month, x.company, x.bank, x.district) in register_keys]
+    return CompanyBillingReport(items=rows, totals={"total_visits": len(rows),
+        "pending": sum(x.status == "Pending" for x in rows), "positive": sum(x.status == "Positive" for x in rows),
+        "negative": sum(x.status == "Negative" for x in rows),
+        "executive_payment_total": sum((x.executive_rate for x in rows if x.executive_rate is not None), Decimal()),
+        "company_billing_total": sum((x.company_rate for x in rows if x.company_rate is not None), Decimal()),
+        "paid_total": sum((x.received_amount for x in relevant_registers), Decimal()),
+        "balance_total": sum((x.balance_amount for x in relevant_registers), Decimal()),
+        "missing_executive_rate_count": sum(x.executive_rate is None for x in rows),
+        "missing_company_rate_count": sum(x.company_rate is None for x in rows)},
         applied_filters={"company_id": company_id, "date_from": date_from.isoformat(), "date_to": date_to.isoformat(), **filters}, metadata=metadata)
 
 
@@ -116,7 +124,11 @@ def executive_report(db: Session, user: User, company_ids, date_from: date, date
             mobile=master.mobile if master else None, total_cases_visits=len(visits),
             pending=sum(x.status == "Pending" for x in visits), positive=sum(x.status == "Positive" for x in visits),
             negative=sum(x.status == "Negative" for x in visits), rate_status=status,
-            executive_rate_total=sum((x.amount for x in matches if x.amount is not None), Decimal()) if status == "MATCHED" else None))
+            executive_rate_total=sum((x.amount for x in matches if x.amount is not None), Decimal()) if status == "MATCHED" else None,
+            details=[ExecutiveVisitDetail(date=visit.receive_date, los=visit.los_no, applicant=visit.applicant,
+                visit_type=visit.visit_type, company=visit.company, bank=visit.bank, district=visit.district,
+                city=visit.city, status=visit.status, executive_rate=match.amount,
+                executive_rate_status=match.status) for visit, match in zip(visits, matches)]))
     summaries = []
     for executive in sorted({x.executive for x in bank_rows}):
         rows = [x for x in bank_rows if x.executive == executive]; master = masters.get(normalized(executive))
@@ -127,7 +139,8 @@ def executive_report(db: Session, user: User, company_ids, date_from: date, date
             total_payment=sum((x.executive_rate_total or Decimal() for x in rows), Decimal()) if ok else None,
             rate_status="MATCHED" if ok else "MISSING"))
     return ExecutivePerformanceReport(items=bank_rows, executive_summary=summaries,
-        totals={"visits": len(items), "executives": len(summaries), "groups": len(bank_rows),
-            "total_payment": sum((x.total_payment for x in summaries if x.total_payment is not None), Decimal()),
-            "missing_rate_groups": sum(x.executive_rate_total is None for x in bank_rows)},
+        totals={"total_visits": len(items), "pending": sum(x.status == "Pending" for x in items),
+            "positive": sum(x.status == "Positive" for x in items), "negative": sum(x.status == "Negative" for x in items),
+            "executive_rate_total": sum((x.total_payment for x in summaries if x.total_payment is not None), Decimal()),
+            "missing_rate_count": sum(detail.executive_rate is None for row in bank_rows for detail in row.details)},
         applied_filters={"date_from": date_from.isoformat(), "date_to": date_to.isoformat(), **filters}, metadata=_metadata(db, date_from, date_to))

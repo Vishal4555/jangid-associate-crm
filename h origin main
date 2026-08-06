@@ -1,0 +1,12 @@
+backend/app/api/billing.py
+backend/app/core/permissions.py
+backend/app/models/billing_month.py
+backend/app/schemas/billing_reports.py
+backend/app/services/billing_report_service.py
+backend/app/services/monthly_billing_service.py
+backend/migrations/20260806_billing_report_snapshot.sql
+frontend/src/components/Sidebar.tsx
+frontend/src/pages/Billing/BillingReportsPage.tsx
+frontend/src/routes/AppRoutes.tsx
+frontend/src/services/billingReportService.ts
+frontend/src/types/billingReport.ts

@@ -50,6 +50,21 @@ class ExecutiveBankSummaryRow(BaseModel):
     negative: int
     executive_rate_total: Decimal | None
     rate_status: str
+    details: list["ExecutiveVisitDetail"] = []
+
+
+class ExecutiveVisitDetail(BaseModel):
+    date: date
+    los: str | None
+    applicant: str | None
+    visit_type: str | None
+    company: str | None
+    bank: str | None
+    district: str | None
+    city: str | None
+    status: str
+    executive_rate: Decimal | None
+    executive_rate_status: str
 
 
 class ExecutiveSummaryRow(BaseModel):
@@ -70,3 +85,6 @@ class ExecutivePerformanceReport(BaseModel):
     totals: dict
     applied_filters: dict
     metadata: ReportMetadata
+
+
+ExecutiveBankSummaryRow.model_rebuild()
