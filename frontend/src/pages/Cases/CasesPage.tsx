@@ -10,7 +10,9 @@ import DeleteCaseDialog from "../../components/cases/DeleteCaseDialog";
 import ViewCaseModal from "../../components/cases/ViewCaseModal";
 
 import { getCases } from "../../services/caseService";
+import { getMyAssignedCompanies } from "../../services/userService";
 import type { Case, CaseStatusFilter } from "../../types/case";
+import { useAuth } from "../../context/AuthContext";
 
 function exportTat(receiveDate: string, closedDate: string): string {
   if (!receiveDate || !closedDate) return "";
@@ -38,6 +40,7 @@ function exportTat(receiveDate: string, closedDate: string): string {
 }
 
 export default function CasesPage() {
+  const {currentUser}=useAuth();const has=(code:string)=>Boolean(currentUser?.permissions.includes(code));
 
   const [cases, setCases] = useState<Case[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +50,7 @@ export default function CasesPage() {
   const [statusFilter, setStatusFilter] = useState<CaseStatusFilter>("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [exporting, setExporting] = useState(false);
+  const [noCompanies,setNoCompanies]=useState(false);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingCase, setEditingCase] = useState<Case | null>(null);
@@ -62,6 +66,7 @@ export default function CasesPage() {
     initializedRef.current = true;
     loadCases();
   }, []);
+  useEffect(()=>{void getMyAssignedCompanies().then(x=>setNoCompanies(!x.all_companies&&x.companies.length===0)).catch(()=>undefined)},[]);
 
   async function loadCases(options?: { silent?: boolean }) {
     const silent = Boolean(options?.silent);
@@ -191,6 +196,8 @@ export default function CasesPage() {
   return (
     <DashboardLayout>
 
+      {noCompanies&&<p className="mb-4 rounded-xl bg-amber-50 p-4 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">No companies assigned. Contact Admin.</p>}
+
       <CaseToolbar
         search={search}
         statusFilter={statusFilter}
@@ -203,6 +210,7 @@ export default function CasesPage() {
         onRefresh={() => void loadCases({ silent: true })}
         onAddCase={() => setIsAddOpen(true)}
         onExport={handleExport}
+        canAdd={has("cases.create")&&!noCompanies}
       />
 
       <CaseTable
@@ -212,6 +220,8 @@ export default function CasesPage() {
         onView={(item) => setViewingCase(item)}
         onEdit={(item) => setEditingCase(item)}
         onDelete={(item) => setDeletingCase(item)}
+        canEdit={has("cases.edit")}
+        canDelete={has("cases.delete")}
       />
 
       <Pagination

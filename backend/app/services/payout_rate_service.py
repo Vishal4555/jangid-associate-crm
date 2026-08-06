@@ -115,7 +115,7 @@ def _executive_response(rate: ExecutivePayoutRate) -> ExecutiveRateResponse:
 
 def list_rates(db: Session, kind: str, search: str | None = None, active: bool | None = None,
         company_id: int | None = None, bank_id: int | None = None, district_id: int | None = None,
-        scope: str | None = None):
+        scope: str | None = None, company_ids: set[int] | None = None):
     model = BankPayoutRate if kind == "bank" else ExecutivePayoutRate
     query = db.query(model).options(joinedload(model.bank))
     if kind == "bank": query = query.options(joinedload(BankPayoutRate.company), joinedload(BankPayoutRate.district))
@@ -124,6 +124,7 @@ def list_rates(db: Session, kind: str, search: str | None = None, active: bool |
     if active is not None:
         query = query.filter(model.is_active == active)
     if kind == "bank":
+        if company_ids is not None: query = query.filter(BankPayoutRate.company_id.in_(company_ids))
         if company_id is not None: query = query.filter(BankPayoutRate.company_id == company_id)
         if bank_id is not None: query = query.filter(BankPayoutRate.bank_id == bank_id)
         if district_id is not None: query = query.filter(BankPayoutRate.district_id == district_id)

@@ -48,8 +48,8 @@ const menus: MenuItem[] = [
   { icon: BarChart3, name: "Billing Dashboard", path: "/billing/dashboard", permissions: ["billing.dashboard"] },
   { icon: Search, name: "Search", path: "/search", permissions: ["search.view"] },
   { icon: BarChart3, name: "Reports", path: "/reports", permissions: ["reports.view","reports.view_own"] },
-  { icon: Layers3, name: "Masters", path: "/masters", permissions: ["masters.view"] },
-  { icon: Layers3, name: "Company & District Masters", path: "/masters/companies", permissions: ["masters.view"] },
+  { icon: Layers3, name: "Masters", path: "/masters", permissions: ["masters.view","masters.view_assigned_companies"] },
+  { icon: Layers3, name: "Company & District Masters", path: "/masters/companies", permissions: ["masters.view","masters.view_assigned_companies"] },
   { icon: Users, name: "Users", path: "/users", permissions: ["users.view"] },
   { icon: Settings, name: "Settings", path: "/settings", permissions: ["settings.view"] },
 ];

@@ -12,6 +12,7 @@ import app.db.base  # noqa: F401
 from app.api.masters import add_company_banks_bulk
 from app.db.database import Base
 from app.models.master import Bank, Company, CompanyBank
+from app.models.user import User
 from app.schemas.master import CompanyBankBulkCreate
 
 
@@ -22,14 +23,15 @@ class CompanyBankBulkTests(unittest.TestCase):
         self.db = Session(self.engine)
         self.company = Company(name="Agency", is_active=True)
         self.banks = [Bank(name=f"Bank {number}") for number in range(1, 5)]
-        self.db.add_all([self.company, *self.banks]); self.db.commit()
+        self.admin=User(full_name="Admin",username="admin",email="admin@example.com",password_hash="x",role="Admin")
+        self.db.add_all([self.company, *self.banks,self.admin]); self.db.commit()
 
     def tearDown(self):
         self.db.close(); self.engine.dispose()
 
     def bulk(self, ids, remarks="Agreement"):
         return add_company_banks_bulk(CompanyBankBulkCreate(
-            company_id=self.company.id, bank_ids=ids, remarks=remarks), self.db, None)
+            company_id=self.company.id, bank_ids=ids, remarks=remarks), self.db, self.admin)
 
     def test_bulk_creates_multiple_and_deduplicates_input(self):
         result = self.bulk([self.banks[0].id, self.banks[1].id, self.banks[0].id])

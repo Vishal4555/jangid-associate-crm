@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.security import require_permission
+from app.core.company_scope import assert_company_access, assigned_company_ids
 from app.db.database import get_db
 from app.models.user import User
 from app.schemas.payout_rate import (BankRateBulkCreate, BankRateBulkResponse, BankRateCreate, BankRateResponse, BankRateUpdate,
@@ -17,23 +18,26 @@ access = Depends(require_permission("billing.rate_master"))
 def get_bank_rates(search: str | None = None, active: bool | None = None, company_id: int | None = None,
         bank_id: int | None = None, district_id: int | None = None,
         scope: str | None = Query(None, pattern="^(rajasthan_except_jaipur|jaipur|specific)$"),
-        db: Session = Depends(get_db), _: User = access):
-    return list_rates(db, "bank", search, active, company_id, bank_id, district_id, scope)
+        db: Session = Depends(get_db), user: User = access):
+    return list_rates(db, "bank", search, active, company_id, bank_id, district_id, scope, assigned_company_ids(user))
 
 
 @router.post("/bank", response_model=BankRateResponse, status_code=status.HTTP_201_CREATED)
 def add_bank_rate(payload: BankRateCreate, db: Session = Depends(get_db), user: User = access):
+    assert_company_access(user, payload.company_id, write=True)
     return create_rate(db, "bank", payload, user)
 
 
 @router.post("/bank/bulk", response_model=BankRateBulkResponse, status_code=status.HTTP_201_CREATED)
 @bulk_router.post("/bank/bulk", response_model=BankRateBulkResponse, status_code=status.HTTP_201_CREATED)
 def add_bank_rates_bulk(payload: BankRateBulkCreate, db: Session = Depends(get_db), user: User = access):
+    assert_company_access(user, payload.company_id, write=True)
     return create_bank_rates_bulk(db, payload, user)
 
 
 @router.put("/bank/{rate_id}", response_model=BankRateResponse)
 def edit_bank_rate(rate_id: int, payload: BankRateUpdate, db: Session = Depends(get_db), user: User = access):
+    assert_company_access(user, payload.company_id, write=True)
     return update_rate(db, "bank", rate_id, payload, user)
 
 

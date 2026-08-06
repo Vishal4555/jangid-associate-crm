@@ -17,6 +17,8 @@ export interface AuthUser {
 }
 
 export interface Permission { id:number; code:string; name:string; description:string; module:string; is_active:boolean }
+export interface AssignedCompany { id:number; name:string; code:string|null; source_type:string; contact_person:string|null; email:string|null; mobile:string|null; is_active:boolean; remarks:string|null; created_at:string; updated_at:string }
+export interface AssignedCompaniesResponse { all_companies:boolean; companies:AssignedCompany[] }
 
 export interface LoginCredentials {
   usernameOrEmail: string;

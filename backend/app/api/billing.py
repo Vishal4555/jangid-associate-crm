@@ -4,9 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.security import require_permission
+from app.core.company_scope import assert_company_access, assigned_company_ids
 from app.db.database import get_db
 from app.models.user import User
 from app.models.billing import Billing
+from app.models.case import Case
 from app.schemas.billing import (BillingCreate, BillingResponse, BillingUpdate, BulkBillingRequest,
     BulkCreateRequest, BulkCreateResponse, BulkPreviewResponse)
 from app.schemas.monthly_billing import (MonthlyBillingResponse, PaymentRegisterResponse, PaymentRegisterUpdate,
@@ -23,6 +25,10 @@ access = Depends(require_permission("billing.view"))
 payment_access = Depends(require_permission("billing.payment_register"))
 
 
+def _executive_scope(user: User) -> str | None:
+    return user.executive.full_name if user.role == "Executive" and user.executive else ("__unlinked_executive__" if user.role == "Executive" else None)
+
+
 @router.get("/monthly", response_model=MonthlyBillingResponse)
 def read_monthly_billing(
     month: str,
@@ -35,7 +41,7 @@ def read_monthly_billing(
     db: Session = Depends(get_db),
     _: User = access,
 ):
-    return monthly_billing(db, month, executive, bank, city, status, company, district)
+    return monthly_billing(db, month, _executive_scope(_) or executive, bank, city, status, company, district, assigned_company_ids(_))
 
 
 @router.post("/monthly/payment-register", response_model=PaymentRegisterResponse)
@@ -75,13 +81,13 @@ def update_bank_payment(payload: BankPaymentUpdate, db: Session = Depends(get_db
 
 @router.get("/dashboard", response_model=BillingDashboardResponse)
 def read_billing_dashboard(month: str, company: str | None = None, bank: str | None = None,
-    district: str | None = None, db: Session = Depends(get_db), _: User = Depends(require_permission("billing.dashboard"))):
-    return billing_dashboard(db, month, company, bank, district)
+    district: str | None = None, db: Session = Depends(get_db), user: User = Depends(require_permission("billing.dashboard"))):
+    return billing_dashboard(db, month, company, bank, district, assigned_company_ids(user))
 
 
 @router.post("/bulk-preview", response_model=BulkPreviewResponse)
-def preview_bulk_billing(payload: BulkBillingRequest, db: Session = Depends(get_db), _: User = access):
-    return bulk_preview(db, payload)
+def preview_bulk_billing(payload: BulkBillingRequest, db: Session = Depends(get_db), user: User = access):
+    return bulk_preview(db, payload, assigned_company_ids(user))
 
 
 @router.post("/bulk-create", response_model=BulkCreateResponse)
@@ -100,14 +106,14 @@ def read_billing(
     from_date: date | None = None,
     to_date: date | None = None,
     db: Session = Depends(get_db),
-    _: User = access,
+    user: User = access,
 ):
-    return list_billing(db, case_no, bank, executive, city, bank_payment_status, executive_payment_status, from_date, to_date)
+    return list_billing(db, case_no, bank, executive, city, bank_payment_status, executive_payment_status, from_date, to_date, assigned_company_ids(user), _executive_scope(user))
 
 
 @router.get("/{billing_id}", response_model=BillingResponse)
-def read_billing_detail(billing_id: int, db: Session = Depends(get_db), _: User = access):
-    return get_billing(db, billing_id)
+def read_billing_detail(billing_id: int, db: Session = Depends(get_db), user: User = access):
+    return get_billing(db, billing_id, assigned_company_ids(user))
 
 
 @router.post("", response_model=BillingResponse, status_code=status.HTTP_201_CREATED)
@@ -121,7 +127,8 @@ def edit_billing(billing_id: int, payload: BillingUpdate, db: Session = Depends(
 
 
 @router.delete("/{billing_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_billing(billing_id: int, db: Session = Depends(get_db), _: User = Depends(require_permission("billing.delete"))):
+def delete_billing(billing_id: int, db: Session = Depends(get_db), user: User = Depends(require_permission("billing.delete"))):
     row = db.get(Billing, billing_id)
     if row is None: raise HTTPException(status_code=404, detail="Billing record not found")
+    case_item=db.get(Case,row.case_id); assert_company_access(user,case_item.company_id)
     db.delete(row); db.commit()

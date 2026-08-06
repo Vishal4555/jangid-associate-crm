@@ -76,14 +76,14 @@ export default function AppRoutes() {
         <Route
           path="/masters"
           element={
-            <PermissionRoute permissions={["masters.view"]}>
+            <PermissionRoute permissions={["masters.view","masters.view_assigned_companies"]}>
               <MastersPage />
             </PermissionRoute>
           }
         />
 
         <Route path="/search" element={<PermissionRoute permissions={["search.view"]}><SearchPage /></PermissionRoute>} />
-        <Route path="/masters/companies" element={<PermissionRoute permissions={["masters.view"]}><CompanyMasterPage /></PermissionRoute>} />
+        <Route path="/masters/companies" element={<PermissionRoute permissions={["masters.view","masters.view_assigned_companies"]}><CompanyMasterPage /></PermissionRoute>} />
         <Route path="/reports" element={<PermissionRoute permissions={["reports.view","reports.view_own"]}><ReportsPage /></PermissionRoute>} />
         <Route path="/billing" element={<PermissionRoute permissions={["billing.view"]}><BillingPage /></PermissionRoute>} />
         <Route path="/billing/payment-register" element={<PermissionRoute permissions={["billing.payment_register"]}><BillingPage /></PermissionRoute>} />

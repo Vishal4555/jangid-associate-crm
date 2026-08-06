@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.case import Case
 from app.models.case_visit import CaseVisit
-from app.models.master import District, Executive
+from app.models.master import Company, District, Executive
 from app.models.payout_rate import BankPayoutRate, ExecutivePayoutRate
 from app.models.user import User
 from app.models.billing_month import BillingMonth, ExecutiveMonthlyBillingSnapshot, ExecutiveMonthlyPayment, BankMonthlyBillingSnapshot, BankMonthlyPayment
@@ -118,11 +118,12 @@ class VisitBillingItem:
             setattr(self, field, getattr(visit, field))
 
 
-def _eligible_cases(db: Session, month: str, executive=None, bank=None, city=None, case_status=None, company=None, district=None):
+def _eligible_cases(db: Session, month: str, executive=None, bank=None, city=None, case_status=None, company=None, district=None, company_ids=None):
     start, end = month_bounds(month)
     query = select(Case, CaseVisit).join(CaseVisit, CaseVisit.case_id == Case.id).where(
         CaseVisit.receive_date.between(start, end),
         func.lower(func.trim(CaseVisit.status)).in_(("positive", "negative")))
+    if company_ids is not None: query = query.where(Case.company_id.in_(company_ids))
     for column, value in ((CaseVisit.executive, executive), (Case.company, company), (Case.bank, bank), (CaseVisit.district, district), (CaseVisit.city, city), (CaseVisit.status, case_status)):
         if value:
             query = query.where(func.lower(func.trim(column)) == normalized(value))
@@ -135,6 +136,7 @@ def _eligible_cases(db: Session, month: str, executive=None, bank=None, city=Non
         Case.receive_date.between(start, end),
         func.lower(func.trim(Case.status)).in_(("positive", "negative")),
     )
+    if company_ids is not None: legacy = legacy.where(Case.company_id.in_(company_ids))
     for column, value in ((Case.executive, executive), (Case.company, company), (Case.bank, bank), (Case.district, district), (Case.city, city), (Case.status, case_status)):
         if value:
             legacy = legacy.where(func.lower(func.trim(column)) == normalized(value))
@@ -180,7 +182,7 @@ def _snapshot_report(db: Session, month: str, period: BillingMonth) -> MonthlyBi
         total_bank_billing=sum((x.rate for x in banks), Decimal())), month_status=month_status(db, month))
 
 
-def monthly_billing(db: Session, month: str, executive=None, bank=None, city=None, case_status=None, company=None, district=None) -> MonthlyBillingResponse:
+def monthly_billing(db: Session, month: str, executive=None, bank=None, city=None, case_status=None, company=None, district=None, company_ids=None) -> MonthlyBillingResponse:
     period = _period(db, month)
     if period and period.status == "FINALIZED":
         report = _snapshot_report(db, month, period)
@@ -190,13 +192,21 @@ def monthly_billing(db: Session, month: str, executive=None, bank=None, city=Non
         if district: report.bank_billing = [x for x in report.bank_billing if normalized(x.district) == normalized(district)]
         if city: report.bank_billing = [x for x in report.bank_billing if normalized(x.city) == normalized(city)]
         if case_status: report.bank_billing = [x for x in report.bank_billing if normalized(x.status) == normalized(case_status)]
+        if company_ids is not None:
+            allowed_names=set(db.scalars(select(Company.name).where(Company.id.in_(company_ids))).all())
+            report.bank_billing=[x for x in report.bank_billing if x.company in allowed_names]
+            report.executive_billing=[]
+            report.summary.total_cases=len(report.bank_billing);report.summary.billable_cases=len(report.bank_billing)
+            report.summary.total_bank_billing=sum((x.rate for x in report.bank_billing if x.rate is not None),Decimal())
+            report.summary.total_executive_payment=Decimal()
         return report
     start, end = month_bounds(month)
     total_query = select(func.count(Case.id)).where(Case.receive_date.between(start, end))
+    if company_ids is not None: total_query=total_query.where(Case.company_id.in_(company_ids))
     for column, value in ((Case.executive, executive), (Case.company, company), (Case.bank, bank), (Case.district, district), (Case.city, city), (Case.status, case_status)):
         if value:
             total_query = total_query.where(func.lower(func.trim(column)) == normalized(value))
-    cases = _eligible_cases(db, month, executive, bank, city, case_status, company, district)
+    cases = _eligible_cases(db, month, executive, bank, city, case_status, company, district, company_ids)
     registers = {normalized(row.executive.full_name): row for row in db.scalars(select(ExecutiveMonthlyPayment).options(joinedload(ExecutiveMonthlyPayment.executive)).where(ExecutiveMonthlyPayment.billing_month == start)).all()}
     groups = defaultdict(list)
     bank_rows, missing_bank, ambiguous = [], 0, 0
@@ -396,10 +406,13 @@ def save_bank_payment(db: Session, payload: BankPaymentUpdate, user: User) -> Ba
     db.commit(); db.refresh(row); return BankPaymentResponse.model_validate(row)
 
 
-def billing_dashboard(db: Session, month: str, company: str | None = None, bank: str | None = None, district: str | None = None) -> BillingDashboardResponse:
-    report = monthly_billing(db, month, bank=bank, company=company, district=district)
+def billing_dashboard(db: Session, month: str, company: str | None = None, bank: str | None = None, district: str | None = None, company_ids=None) -> BillingDashboardResponse:
+    report = monthly_billing(db, month, bank=bank, company=company, district=district, company_ids=company_ids)
     start, _ = month_bounds(month)
     query = select(BankMonthlyPayment).where(BankMonthlyPayment.billing_month == start)
+    if company_ids is not None:
+        allowed_names=set(db.scalars(select(Company.name).where(Company.id.in_(company_ids))).all())
+        query=query.where(BankMonthlyPayment.company.in_(allowed_names))
     for column, value in ((BankMonthlyPayment.company, company), (BankMonthlyPayment.bank, bank), (BankMonthlyPayment.district, district)):
         if value: query = query.where(func.lower(func.trim(column)) == normalized(value))
     banks = db.scalars(query.order_by(BankMonthlyPayment.company, BankMonthlyPayment.bank, BankMonthlyPayment.district)).all()

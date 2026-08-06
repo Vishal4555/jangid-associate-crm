@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.security import has_permission, require_any_permission, require_permission
+from app.core.company_scope import assigned_company_ids
 from app.db.database import get_db
 from app.models.user import User
 from app.schemas.dashboard import (
@@ -32,7 +33,7 @@ def read_dashboard_summary(
     db: Session = Depends(get_db),
     user: User = Depends(require_any_permission("dashboard.view", "reports.view", "reports.view_own")),
 ):
-    return get_dashboard_summary(db, executive_scope=_scope(user))
+    return get_dashboard_summary(db, executive_scope=_scope(user), company_ids=assigned_company_ids(user))
 
 
 @router.get("/performance", response_model=DashboardPerformanceResponse)
@@ -49,9 +50,11 @@ def read_dashboard_performance(
         db,
         from_date=from_date,
         to_date=to_date,
-        executive=_scope(user) or executive,
+        executive=executive if _scope(user) is None else None,
         city=city,
         bank=bank,
+        company_ids=assigned_company_ids(user),
+        executive_scope=_scope(user),
     )
 
 
@@ -60,4 +63,4 @@ def read_pending_ageing(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("dashboard.view")),
 ):
-    return get_pending_ageing(db, executive_scope=_scope(user))
+    return get_pending_ageing(db, executive_scope=_scope(user), company_ids=assigned_company_ids(user))

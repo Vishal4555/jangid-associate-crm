@@ -13,6 +13,7 @@ type Props = {
   onRefresh: () => void;
   onAddCase: () => void;
   onExport: () => void;
+  canAdd: boolean;
 };
 
 export default function CaseToolbar({
@@ -27,6 +28,7 @@ export default function CaseToolbar({
   onRefresh,
   onAddCase,
   onExport,
+  canAdd,
 }: Props) {
   return (
     <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -44,13 +46,13 @@ export default function CaseToolbar({
 
         <div className="flex flex-wrap gap-3">
 
-          <button
+          {canAdd&&<button
             onClick={onAddCase}
             className="flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-white shadow-lg shadow-orange-500/20 transition hover:-translate-y-0.5 hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Plus size={18} />
             New Case
-          </button>
+          </button>}
 
           <button
             onClick={onRefresh}

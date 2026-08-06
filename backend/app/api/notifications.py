@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.security import require_permission
+from app.core.company_scope import assigned_company_ids
 from app.db.database import get_db
 from app.models.user import User
 from app.schemas.notification import NotificationResponse
@@ -17,4 +18,4 @@ def read_notifications(
     user: User = Depends(require_permission("notifications.view")),
 ):
     executive_scope = (user.executive.full_name if user.executive else "__unlinked_executive__") if user.role == "Executive" else None
-    return get_notifications(db, executive_scope=executive_scope)
+    return get_notifications(db, executive_scope=executive_scope, company_ids=assigned_company_ids(user))

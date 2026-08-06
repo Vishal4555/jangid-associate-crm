@@ -3,16 +3,18 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.security import hash_password, has_permission, require_any_permission, require_permission
+from app.core.security import get_current_active_user, hash_password, has_permission, require_any_permission, require_permission
 from app.db.database import get_db
-from app.models.master import Executive
-from app.models.user import User, UserAuditLog
+from app.models.master import Company, Executive
+from app.models.user import User, UserAuditLog, UserCompany
 from app.schemas.auth import PasswordReset, UserCreate, UserResponse, UserUpdate
 from app.schemas.permission import UserPermissionsResponse, UserPermissionsUpdate
 from app.services.permission_service import grant_default_permissions, replace_permissions
+from app.schemas.user_company import AssignedCompaniesResponse, UserCompaniesUpdate
 
 
 router = APIRouter(prefix="/users", tags=["users"])
+me_router = APIRouter(tags=["company assignments"])
 read_access = Depends(require_permission("users.view"))
 
 
@@ -159,3 +161,29 @@ def update_user_permissions(user_id: int, payload: UserPermissionsUpdate, db: Se
     if old - new: _audit(db, user, actor, "PERMISSION_REMOVED", sorted(old), sorted(new))
     db.commit(); db.refresh(user)
     return {"user_id": user.id, "permission_codes": user.permissions}
+
+
+@router.get("/{user_id}/companies", response_model=AssignedCompaniesResponse)
+def get_user_companies(user_id: int, db: Session = Depends(get_db), _: User = Depends(require_permission("users.view"))):
+    user = get_user_or_404(db, user_id)
+    return {"all_companies": user.role == "Admin", "companies": [row.company for row in user.company_assignments]}
+
+
+@router.put("/{user_id}/companies", response_model=AssignedCompaniesResponse)
+def update_user_companies(user_id: int, payload: UserCompaniesUpdate, db: Session = Depends(get_db), actor: User = Depends(require_permission("users.manage_permissions"))):
+    if actor.role != "Admin": raise HTTPException(status_code=403, detail="Only Admins can change company assignments")
+    user = get_user_or_404(db, user_id); company_ids = set(payload.company_ids)
+    companies = db.scalars(select(Company).where(Company.id.in_(company_ids))).all() if company_ids else []
+    if len(companies) != len(company_ids): raise HTTPException(status_code=422, detail="One or more companies were not found")
+    old = sorted(row.company_id for row in user.company_assignments)
+    for row in list(user.company_assignments): db.delete(row)
+    db.flush()
+    for company_id in sorted(company_ids): db.add(UserCompany(user_id=user.id, company_id=company_id, assigned_by_user_id=actor.id))
+    _audit(db, user, actor, "COMPANY_ASSIGNMENTS_CHANGED", old, sorted(company_ids)); db.commit(); db.refresh(user)
+    return {"all_companies": user.role == "Admin", "companies": [row.company for row in user.company_assignments]}
+
+
+@me_router.get("/me/assigned-companies", response_model=AssignedCompaniesResponse)
+def my_assigned_companies(db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
+    if user.role == "Admin": return {"all_companies": True, "companies": []}
+    return {"all_companies": False, "companies": [row.company for row in user.company_assignments]}

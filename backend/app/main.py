@@ -8,7 +8,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import exists, func, or_, select, text
+from sqlalchemy import and_, exists, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -21,10 +21,11 @@ from app.api.dashboard import router as dashboard_router
 from app.api.follow_ups import router as follow_ups_router
 from app.api.masters import router as masters_router
 from app.api.notifications import router as notifications_router
-from app.api.users import router as users_router
+from app.api.users import me_router as user_company_me_router, router as users_router
 from app.api.permissions import router as permissions_router
 from app.api.case_visits import router as case_visits_router
 from app.core.security import get_current_active_user, has_permission, require_any_permission, require_permission
+from app.core.company_scope import assert_company_access, assigned_company_ids
 from app.db.database import Base, engine, get_db
 from app.models.case import Case
 from app.models.case_visit import CaseVisit
@@ -135,9 +136,13 @@ def _executive_name(user: User) -> str:
 
 
 def _case_visible_to(case_id: int, user: User):
-    if user.role != "Executive" or has_permission(user, "cases.view_all"): return True
-    name = _executive_name(user)
-    return or_(Case.executive == name, exists(select(CaseVisit.id).where(CaseVisit.case_id == case_id, CaseVisit.executive == name)))
+    conditions = []
+    company_ids = assigned_company_ids(user)
+    if company_ids is not None: conditions.append(Case.company_id.in_(company_ids))
+    if user.role == "Executive" and not has_permission(user, "cases.view_all"):
+        name = _executive_name(user)
+        conditions.append(or_(Case.executive == name, exists(select(CaseVisit.id).where(CaseVisit.case_id == case_id, CaseVisit.executive == name))))
+    return and_(*conditions) if conditions else True
 
 
 def _assert_parent_compatible(existing: Case, data: dict) -> None:
@@ -247,6 +252,7 @@ app.include_router(payout_rates_bulk_router)
 app.include_router(masters_router)
 app.include_router(dashboard_router)
 app.include_router(users_router)
+app.include_router(user_company_me_router)
 app.include_router(permissions_router)
 app.include_router(notifications_router)
 app.include_router(case_visits_router)
@@ -257,6 +263,7 @@ app.include_router(payout_rates_bulk_router, prefix="/api", include_in_schema=Fa
 app.include_router(masters_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
+app.include_router(user_company_me_router, prefix="/api")
 app.include_router(permissions_router, prefix="/api")
 app.include_router(notifications_router, prefix="/api", include_in_schema=False)
 app.include_router(case_visits_router, prefix="/api", include_in_schema=False)
@@ -304,7 +311,7 @@ def get_cases(
         return FileResponse(FRONTEND_INDEX_FILE)
 
     stmt = select(Case).order_by(Case.id.asc())
-    if current_user.role == "Executive": stmt = stmt.where(_case_visible_to(Case.id, current_user))
+    stmt = stmt.where(_case_visible_to(Case.id, current_user))
     return db.scalars(stmt).all()
 
 
@@ -341,6 +348,7 @@ def create_case(
     # case_no supplied by older clients is deliberately ignored for this workflow.
     case_data.pop("case_no", None)
     case_data["los_no"] = (case_data.get("los_no") or "").strip()
+    assert_company_access(current_user, case_data.get("company_id"), write=True)
     if not case_data["los_no"]:
         raise HTTPException(status_code=422, detail="LOS / Application No is required")
     _validate_case_dimensions(db, case_data)
@@ -431,6 +439,7 @@ def update_case(
         )
 
     update_data = case_update.model_dump(exclude_unset=True)
+    if "company_id" in update_data: assert_company_access(current_user, update_data.get("company_id"), write=True)
     dimension_data = {"company_id": update_data.get("company_id", existing_case.company_id),
         "district_id": update_data.get("district_id", existing_case.district_id),
         "bank": update_data.get("bank", existing_case.bank)}

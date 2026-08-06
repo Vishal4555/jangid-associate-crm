@@ -9,6 +9,8 @@ interface Props {
   onView: (item: Case) => void;
   onEdit: (item: Case) => void;
   onDelete: (item: Case) => void;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
 function formatTurnaroundTime(receiveDate: string, closedDate: string): string {
@@ -57,6 +59,8 @@ export default function CaseTable({
   onView,
   onEdit,
   onDelete,
+  canEdit,
+  canDelete,
 }: Props) {
   const safeCases = Array.isArray(cases) ? cases : [];
 
@@ -154,23 +158,23 @@ export default function CaseTable({
 
                   <div className="flex justify-center gap-2">
 
-                    <button
+                    {canEdit&&<button
                       onClick={() => onView(item)}
                       className="text-blue-600 hover:bg-blue-50 rounded p-1.5"
                       aria-label={`View case ${item.los_no || "without LOS number"}`}
                       title="View"
                     >
                       <Eye size={18} />
-                    </button>
+                    </button>}
 
-                    <button
+                    {canDelete&&<button
                       onClick={() => onEdit(item)}
                       className="text-green-600 hover:bg-green-50 rounded p-1.5"
                       aria-label={`Edit case ${item.los_no || "without LOS number"}`}
                       title="Edit"
                     >
                       <Pencil size={18} />
-                    </button>
+                    </button>}
 
                     <button
                       onClick={() => onDelete(item)}

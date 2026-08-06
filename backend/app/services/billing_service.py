@@ -2,13 +2,15 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import exists, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.billing import Billing
 from app.models.case import Case
+from app.models.case_visit import CaseVisit
 from app.models.user import User
+from app.core.company_scope import assert_company_access, assigned_company_ids
 from app.schemas.billing import (BillingCreate, BillingResponse, BillingUpdate, BulkBillingRequest,
     BulkCreateResponse, BulkCreateResult, BulkPreviewResponse, BulkPreviewRow, BulkPreviewSummary)
 from app.services.payout_rate_service import resolve_rates
@@ -97,8 +99,12 @@ def list_billing(
     executive_payment_status: str | None = None,
     from_date: date | None = None,
     to_date: date | None = None,
+    company_ids: set[int] | None = None,
+    executive_scope: str | None = None,
 ) -> list[BillingResponse]:
     query = select(Billing, Case).join(Case, Billing.case_id == Case.id)
+    if company_ids is not None: query = query.where(Case.company_id.in_(company_ids))
+    if executive_scope is not None: query=query.where(or_(Case.executive==executive_scope,exists(select(CaseVisit.id).where(CaseVisit.case_id==Case.id,CaseVisit.executive==executive_scope))))
     if case_no:
         query = query.where(or_(Case.los_no.ilike(f"%{case_no}%"), Case.case_no.ilike(f"%{case_no}%")))
     if bank:
@@ -119,9 +125,11 @@ def list_billing(
     return [_response(billing, case_item) for billing, case_item in rows]
 
 
-def get_billing(db: Session, billing_id: int) -> BillingResponse:
+def get_billing(db: Session, billing_id: int, company_ids: set[int] | None = None) -> BillingResponse:
+    query = select(Billing, Case).join(Case, Billing.case_id == Case.id).where(Billing.id == billing_id)
+    if company_ids is not None: query = query.where(Case.company_id.in_(company_ids))
     row = db.execute(
-        select(Billing, Case).join(Case, Billing.case_id == Case.id).where(Billing.id == billing_id)
+        query
     ).one_or_none()
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing record not found")
@@ -132,6 +140,7 @@ def create_billing(db: Session, payload: BillingCreate, current_user: User) -> B
     case_item = db.get(Case, payload.case_id)
     if case_item is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+    assert_company_access(current_user, case_item.company_id)
     data = payload.model_dump()
     _apply_payment_rules(data)
     billing = Billing(**data, created_by_user_id=current_user.id, updated_by_user_id=current_user.id)
@@ -164,8 +173,10 @@ def _case_query(payload: BulkBillingRequest):
     return query.order_by(Case.id)
 
 
-def bulk_preview(db: Session, payload: BulkBillingRequest) -> BulkPreviewResponse:
-    cases = db.scalars(_case_query(payload)).all()
+def bulk_preview(db: Session, payload: BulkBillingRequest, company_ids: set[int] | None = None) -> BulkPreviewResponse:
+    query = _case_query(payload)
+    if company_ids is not None: query = query.where(Case.company_id.in_(company_ids))
+    cases = db.scalars(query).all()
     billed_ids = set(db.scalars(select(Billing.case_id).where(Billing.case_id.in_([c.id for c in cases]))).all()) if cases else set()
     rows = []
     for case_item in cases:
@@ -198,7 +209,10 @@ def bulk_preview(db: Session, payload: BulkBillingRequest) -> BulkPreviewRespons
 
 def bulk_create(db: Session, case_ids: list[int], user: User) -> BulkCreateResponse:
     unique_ids = list(dict.fromkeys(case_ids))
-    cases = {c.id: c for c in db.scalars(select(Case).where(Case.id.in_(unique_ids)).with_for_update()).all()}
+    query = select(Case).where(Case.id.in_(unique_ids))
+    company_ids = assigned_company_ids(user)
+    if company_ids is not None: query = query.where(Case.company_id.in_(company_ids))
+    cases = {c.id: c for c in db.scalars(query.with_for_update()).all()}
     existing = set(db.scalars(select(Billing.case_id).where(Billing.case_id.in_(unique_ids))).all())
     results, pending = [], []
     for case_id in unique_ids:
@@ -240,9 +254,12 @@ def update_billing(db: Session, billing_id: int, payload: BillingUpdate, current
     billing = db.get(Billing, billing_id)
     if billing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing record not found")
+    current_case = db.get(Case, billing.case_id); assert_company_access(current_user, current_case.company_id)
     data = payload.model_dump(exclude_unset=True)
-    if "case_id" in data and db.get(Case, data["case_id"]) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+    if "case_id" in data:
+        target_case = db.get(Case, data["case_id"])
+        if target_case is None: raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+        assert_company_access(current_user, target_case.company_id)
     _apply_payment_rules(data, billing)
     for field, value in data.items():
         setattr(billing, field, value)

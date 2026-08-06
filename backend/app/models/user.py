@@ -24,6 +24,7 @@ class User(Base):
 
     executive = relationship("Executive")
     permission_grants = relationship("UserPermission", foreign_keys="UserPermission.user_id", cascade="all, delete-orphan")
+    company_assignments = relationship("UserCompany", foreign_keys="UserCompany.user_id", cascade="all, delete-orphan")
 
     @property
     def executive_name(self):
@@ -55,6 +56,17 @@ class UserPermission(Base):
     granted_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="RESTRICT"), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     permission = relationship("Permission")
+
+
+class UserCompany(Base):
+    __tablename__ = "user_companies"
+    __table_args__ = (UniqueConstraint("user_id", "company_id", name="uq_user_companies_user_company"),)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    assigned_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="RESTRICT"), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    company = relationship("Company")
 
 
 class UserAuditLog(Base):

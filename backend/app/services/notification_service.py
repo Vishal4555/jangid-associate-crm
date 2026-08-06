@@ -1,9 +1,10 @@
 from datetime import datetime, time, timedelta
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, exists, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.case import Case
+from app.models.case_visit import CaseVisit
 from app.schemas.notification import NotificationResponse
 from app.services.dashboard_service import PENDING_CONDITION
 
@@ -11,7 +12,7 @@ from app.services.dashboard_service import PENDING_CONDITION
 SEVERITY_ORDER = {"critical": 0, "warning": 1, "info": 2}
 
 
-def get_notifications(db: Session, executive_scope: str | None = None) -> list[NotificationResponse]:
+def get_notifications(db: Session, executive_scope: str | None = None, company_ids: set[int] | None = None) -> list[NotificationResponse]:
     now = datetime.now()
     today_start = datetime.combine(now.date(), time.min)
     tomorrow_start = today_start + timedelta(days=1)
@@ -30,7 +31,8 @@ def get_notifications(db: Session, executive_scope: str | None = None) -> list[N
             )
         )
     )
-    if executive_scope is not None: query = query.where(Case.executive == executive_scope)
+    if executive_scope is not None: query = query.where(or_(Case.executive == executive_scope, exists(select(CaseVisit.id).where(CaseVisit.case_id == Case.id, CaseVisit.executive == executive_scope))))
+    if company_ids is not None: query = query.where(Case.company_id.in_(company_ids))
     cases = db.scalars(query).all()
     notifications: list[NotificationResponse] = []
 

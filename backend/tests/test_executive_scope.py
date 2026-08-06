@@ -13,17 +13,17 @@ from app.api.case_visits import list_visits, update_visit
 from app.db.database import Base
 from app.models.case import Case
 from app.models.case_visit import CaseVisit
-from app.models.master import Executive
-from app.models.user import User
+from app.models.master import Company, Executive
+from app.models.user import User, UserCompany
 from app.schemas.case_visit import CaseVisitUpdate
 
 
 class ExecutiveScopeTests(unittest.TestCase):
     def setUp(self):
         self.engine=create_engine("sqlite://",connect_args={"check_same_thread":False},poolclass=StaticPool);Base.metadata.create_all(self.engine);self.db=Session(self.engine)
-        master=Executive(full_name="Exec One",status="Active"); self.db.add(master); self.db.flush()
+        master=Executive(full_name="Exec One",status="Active");company=Company(name="Assigned Company"); self.db.add_all([master,company]); self.db.flush()
         self.user=User(full_name="Exec Login",username="exec",email="exec@test.local",password_hash="x",role="Executive",executive_id=master.id)
-        self.case=Case(case_no="C-1",applicant="Applicant");self.db.add_all([self.user,self.case]);self.db.flush()
+        self.db.add(self.user);self.db.flush();self.db.add(UserCompany(user_id=self.user.id,company_id=company.id));self.case=Case(case_no="C-1",applicant="Applicant",company_id=company.id,company=company.name);self.db.add(self.case);self.db.flush()
         self.assigned=CaseVisit(case_id=self.case.id,visit_type="Residence",executive="Exec One",status="Pending")
         self.other=CaseVisit(case_id=self.case.id,visit_type="Office",executive="Exec Two",status="Pending")
         self.db.add_all([self.assigned,self.other]);self.db.commit()

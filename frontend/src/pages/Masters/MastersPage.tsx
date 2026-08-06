@@ -368,7 +368,7 @@ export default function MastersPage() {
 
   const columns = columnsFor(activeMaster);
 
-  if (!currentUser?.permissions.includes("masters.view")) {
+  if (!currentUser?.permissions.some(code=>["masters.view","masters.view_assigned_companies"].includes(code))) {
     return (
       <DashboardLayout>
         <div className="rounded-3xl border border-amber-200 bg-amber-50 p-8 text-amber-950 shadow-sm">

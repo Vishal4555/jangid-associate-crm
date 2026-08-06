@@ -1,12 +1,14 @@
 from datetime import datetime, time, timedelta
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from sqlalchemy import exists, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.security import require_permission
+from app.core.company_scope import assigned_company_ids
 from app.db.database import get_db
 from app.models.case import Case
+from app.models.case_visit import CaseVisit
 from app.models.user import User
 from app.schemas.case import CaseResponse
 
@@ -15,9 +17,12 @@ router = APIRouter(prefix="/follow-ups", tags=["follow-ups"])
 
 
 def _scope(stmt, user: User):
-    if user.role != "Executive": return stmt
-    name = user.executive.full_name if user.executive else "__unlinked_executive__"
-    return stmt.where(Case.executive == name)
+    ids = assigned_company_ids(user)
+    if ids is not None: stmt = stmt.where(Case.company_id.in_(ids))
+    if user.role == "Executive":
+        name = user.executive.full_name if user.executive else "__unlinked_executive__"
+        stmt = stmt.where(or_(Case.executive == name, exists(select(CaseVisit.id).where(CaseVisit.case_id == Case.id, CaseVisit.executive == name))))
+    return stmt
 
 
 def _get_server_now() -> datetime:
