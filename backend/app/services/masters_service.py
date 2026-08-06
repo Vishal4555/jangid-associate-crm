@@ -7,7 +7,7 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from app.models.master import Bank, Branch, Executive, LoanType, ProductType
+from app.models.master import Bank, Branch, District, Executive, LoanType, ProductType
 from app.schemas.master import (
     BankCreate,
     BankPageResponse,
@@ -232,6 +232,8 @@ def get_executive(db: Session, executive_id: int) -> Executive:
 
 
 def create_executive(db: Session, payload: ExecutiveCreate) -> Executive:
+    if payload.district_id is not None and db.get(District, payload.district_id) is None:
+        raise HTTPException(status_code=422, detail="District not found")
     executive = Executive(**payload.model_dump())
     db.add(executive)
 
@@ -246,6 +248,8 @@ def create_executive(db: Session, payload: ExecutiveCreate) -> Executive:
 
 def update_executive(db: Session, executive_id: int, payload: ExecutiveUpdate) -> Executive:
     executive = get_executive(db, executive_id)
+    if payload.district_id is not None and db.get(District, payload.district_id) is None:
+        raise HTTPException(status_code=422, detail="District not found")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(executive, field, value)
 

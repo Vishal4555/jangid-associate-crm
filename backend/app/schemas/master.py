@@ -74,6 +74,10 @@ class ExecutiveBase(BaseModel):
     full_name: str = Field(min_length=1, max_length=200)
     email: Optional[EmailStr] = None
     mobile: Optional[str] = Field(default=None, max_length=20)
+    address: Optional[str] = Field(default=None, max_length=1000)
+    district_id: Optional[int] = None
+    city: Optional[str] = Field(default=None, max_length=100)
+    pincode: Optional[str] = Field(default=None, pattern=r"^\d{0,6}$", max_length=10)
     status: ExecutiveStatus = "Active"
 
 
@@ -85,11 +89,16 @@ class ExecutiveUpdate(BaseModel):
     full_name: Optional[str] = Field(default=None, min_length=1, max_length=200)
     email: Optional[EmailStr] = None
     mobile: Optional[str] = Field(default=None, max_length=20)
+    address: Optional[str] = Field(default=None, max_length=1000)
+    district_id: Optional[int] = None
+    city: Optional[str] = Field(default=None, max_length=100)
+    pincode: Optional[str] = Field(default=None, pattern=r"^\d{0,6}$", max_length=10)
     status: Optional[ExecutiveStatus] = None
 
 
 class ExecutiveResponse(ExecutiveBase):
     id: int
+    district_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

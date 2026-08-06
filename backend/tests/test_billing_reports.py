@@ -15,7 +15,7 @@ from app.db.database import Base
 from app.models.billing_month import BankMonthlyPayment
 from app.models.case import Case
 from app.models.case_visit import CaseVisit
-from app.models.master import Company, Executive
+from app.models.master import Company, District, Executive
 from app.models.user import User
 from app.services.billing_report_service import company_report, executive_report
 from app.services.payout_rate_service import RateMatch
@@ -27,10 +27,11 @@ class BillingReportTests(unittest.TestCase):
         Base.metadata.create_all(self.engine)
         self.db = Session(self.engine)
         self.company_a, self.company_b = Company(name="Company A"), Company(name="Company B")
-        self.master = Executive(full_name="Exec One", mobile="9999999999")
+        self.district = District(name="Jaipur", state="Rajasthan")
+        self.master = Executive(full_name="Exec One", mobile="9999999999", address="Plot 12", city="Mansarovar", pincode="302020", district=self.district)
         self.admin = User(full_name="Admin", username="admin-report", email="admin-report@test.local", password_hash="x", role="Admin")
         self.executive = User(full_name="Exec", username="exec-report", email="exec-report@test.local", password_hash="x", role="Executive", executive=self.master)
-        self.db.add_all([self.company_a, self.company_b, self.master, self.admin, self.executive]); self.db.flush()
+        self.db.add_all([self.company_a, self.company_b, self.district, self.master, self.admin, self.executive]); self.db.flush()
         self.case_a = Case(case_no="A", los_no="LOS-A", company_id=self.company_a.id, company=self.company_a.name,
             bank="Bank One", applicant="Applicant A", mobile="111", executive="Exec One", status="Pending")
         self.case_b = Case(case_no="B", company_id=self.company_b.id, company=self.company_b.name,
@@ -66,6 +67,8 @@ class BillingReportTests(unittest.TestCase):
         self.assertEqual(report.totals, {"total_visits": 3, "pending": 1, "positive": 1, "negative": 1,
             "executive_rate_total": Decimal("150"), "missing_rate_count": 0})
         self.assertTrue(all(x.company == "Company A" for x in report.items[0].details))
+        self.assertEqual(report.items[0].address, "Plot 12, Mansarovar, Jaipur, 302020")
+        self.assertNotEqual(report.items[0].address, self.case_a.address)
 
     def test_company_scope_rejects_out_of_scope_company(self):
         with self.assertRaises(HTTPException) as raised:

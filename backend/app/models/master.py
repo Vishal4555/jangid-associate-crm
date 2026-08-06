@@ -91,9 +91,17 @@ class Executive(Base):
     full_name = Column(String(200), nullable=False, index=True)
     email = Column(String(255), nullable=True, index=True)
     mobile = Column(String(20), nullable=True, index=True)
+    address = Column(Text, nullable=True)
+    district_id = Column(Integer, ForeignKey("districts.id", ondelete="SET NULL"), nullable=True, index=True)
+    city = Column(String(100), nullable=True)
+    pincode = Column(String(10), nullable=True)
     status = Column(String(20), nullable=False, default="Active", index=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    district = relationship("District")
+
+    @property
+    def district_name(self): return self.district.name if self.district else None
 
 
 class LoanType(Base):

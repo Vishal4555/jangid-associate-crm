@@ -42,6 +42,11 @@ export interface Executive {
   full_name: string;
   email: string | null;
   mobile: string | null;
+  address: string | null;
+  district_id: number | null;
+  district_name: string | null;
+  city: string | null;
+  pincode: string | null;
   status: "Active" | "Inactive";
   created_at: string;
   updated_at: string;
@@ -100,6 +105,7 @@ export type MasterPayloadMap = {
     full_name: string;
     email?: string;
     mobile?: string;
+    address?: string; district_id?: number; city?: string; pincode?: string;
     status: "Active" | "Inactive";
   };
   "loan-types": { name: string; code?: string };
@@ -116,6 +122,7 @@ export type MasterFormValuesMap = {
     full_name: string;
     email: string;
     mobile: string;
+    address: string; district_id: string; city: string; pincode: string;
     status: "Active" | "Inactive";
   };
   "loan-types": { name: string; code: string };

@@ -33,8 +33,13 @@ def _metadata(db: Session, start: date, end: date) -> ReportMetadata:
         (finalized if periods.get(month) and periods[month].status == "FINALIZED" else draft).append(month.strftime("%Y-%m"))
     return ReportMetadata(state="FINALIZED" if finalized and not draft else "DRAFT" if draft and not finalized else "MIXED",
         contains_draft=bool(draft), contains_finalized=bool(finalized), finalized_months=finalized,
-        draft_months=draft, generated_at=datetime.now(timezone.utc),
-        limitations=["Executive Master has no address field; Executive address is blank."])
+        draft_months=draft, generated_at=datetime.now(timezone.utc), limitations=[])
+
+
+def _executive_address(executive: Executive | None) -> str | None:
+    if executive is None: return None
+    value = ", ".join(str(x).strip() for x in (executive.address, executive.city, executive.district_name, executive.pincode) if x and str(x).strip())
+    return value or None
 
 
 def _visits(db, start, end, company_ids, executive_name=None, company_id=None, bank=None,
@@ -121,7 +126,7 @@ def executive_report(db: Session, user: User, company_ids, date_from: date, date
         status = "MISSING" if any(x.status == "MISSING" for x in matches) else "AMBIGUOUS" if any(x.status == "AMBIGUOUS" for x in matches) else "MATCHED"
         master = masters.get(normalized(executive))
         bank_rows.append(ExecutiveBankSummaryRow(executive=executive, bank_finance_company=bank,
-            mobile=master.mobile if master else None, total_cases_visits=len(visits),
+            address=_executive_address(master), mobile=master.mobile if master else None, total_cases_visits=len(visits),
             pending=sum(x.status == "Pending" for x in visits), positive=sum(x.status == "Positive" for x in visits),
             negative=sum(x.status == "Negative" for x in visits), rate_status=status,
             executive_rate_total=sum((x.amount for x in matches if x.amount is not None), Decimal()) if status == "MATCHED" else None,
@@ -133,7 +138,7 @@ def executive_report(db: Session, user: User, company_ids, date_from: date, date
     for executive in sorted({x.executive for x in bank_rows}):
         rows = [x for x in bank_rows if x.executive == executive]; master = masters.get(normalized(executive))
         ok = all(x.rate_status == "MATCHED" for x in rows)
-        summaries.append(ExecutiveSummaryRow(executive=executive, mobile=master.mobile if master else None,
+        summaries.append(ExecutiveSummaryRow(executive=executive, address=_executive_address(master), mobile=master.mobile if master else None,
             total_visits=sum(x.total_cases_visits for x in rows), pending=sum(x.pending for x in rows),
             positive=sum(x.positive for x in rows), negative=sum(x.negative for x in rows),
             total_payment=sum((x.executive_rate_total or Decimal() for x in rows), Decimal()) if ok else None,

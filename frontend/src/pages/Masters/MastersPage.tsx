@@ -16,6 +16,7 @@ import type {
   Bank,
   Branch,
   Executive,
+  District,
   LoanType,
   MasterKey,
   MasterRecord,
@@ -51,7 +52,7 @@ function emptyValues(master: MasterKey): DialogValues {
     case "branches":
       return { bank_id: "", name: "", code: "" };
     case "executives":
-      return { full_name: "", email: "", mobile: "", status: "Active" };
+      return { full_name: "", email: "", mobile: "", address: "", district_id: "", city: "", pincode: "", status: "Active" };
     case "loan-types":
       return { name: "", code: "" };
     case "product-types":
@@ -77,6 +78,8 @@ function valuesFromRecord(master: MasterKey, record: MasterRecord): DialogValues
         full_name: item.full_name,
         email: item.email ?? "",
         mobile: item.mobile ?? "",
+        address: item.address ?? "", district_id: item.district_id ? String(item.district_id) : "",
+        city: item.city ?? "", pincode: item.pincode ?? "",
         status: item.status,
       };
     }
@@ -111,6 +114,7 @@ function columnsFor(master: MasterKey): ColumnConfig[] {
         { header: "Name", render: (record) => (record as Executive).full_name },
         { header: "Email", render: (record) => (record as Executive).email ?? "-" },
         { header: "Mobile", render: (record) => (record as Executive).mobile ?? "-" },
+        { header: "Address / District / City", render: (record) => { const x=record as Executive; return [x.address,x.city,x.district_name,x.pincode].filter(Boolean).join(", ")||"-" } },
         { header: "Status", render: (record) => (record as Executive).status },
       ];
     case "loan-types":
@@ -149,6 +153,7 @@ export default function MastersPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<MasterRecord | null>(null);
   const [referenceBanks, setReferenceBanks] = useState<Bank[]>([]);
+  const [referenceDistricts, setReferenceDistricts] = useState<District[]>([]);
   const [referenceLoading, setReferenceLoading] = useState(true);
 
   const managePermission:Record<MasterKey,string>={banks:"banks.manage",branches:"banks.manage",executives:"executives.manage","loan-types":"loan_types.manage","product-types":"product_types.manage",companies:"companies.manage","company-banks":"companies.manage",districts:"districts.manage"};
@@ -161,12 +166,14 @@ export default function MastersPage() {
       setReferenceLoading(true);
 
       try {
-        const [banks] = await Promise.all([
+        const [banks, districts] = await Promise.all([
           listMasters("banks", { all: true }),
+          listMasters("districts", { all: true }),
         ]);
 
         if (!cancelled) {
           setReferenceBanks(Array.isArray(banks?.items) ? banks.items : []);
+          setReferenceDistricts(Array.isArray(districts?.items) ? districts.items : []);
         }
       } catch (referenceError) {
         if (!cancelled) {
@@ -566,6 +573,7 @@ export default function MastersPage() {
           mode={dialogMode}
           values={dialogValues}
           banks={referenceBanks}
+          districts={referenceDistricts}
           loadingBanks={referenceLoading}
           isSubmitting={isSubmitting}
           onChange={setDialogValues}
@@ -605,6 +613,9 @@ function buildPayload(master: MasterKey, values: DialogValues) {
         full_name: values.full_name?.trim() ?? "",
         email: values.email?.trim() || undefined,
         mobile: values.mobile?.trim() || undefined,
+        address: values.address?.trim() || undefined,
+        district_id: values.district_id ? Number(values.district_id) : undefined,
+        city: values.city?.trim() || undefined, pincode: values.pincode?.trim() || undefined,
         status: (values.status as "Active" | "Inactive") ?? "Active",
       };
     case "loan-types":
@@ -627,6 +638,7 @@ type DialogProps = {
   mode: DialogMode;
   values: DialogValues;
   banks: Bank[];
+  districts: District[];
   loadingBanks: boolean;
   isSubmitting: boolean;
   onChange: (values: DialogValues) => void;
@@ -639,6 +651,7 @@ function MasterDialog({
   mode,
   values,
   banks,
+  districts,
   loadingBanks,
   isSubmitting,
   onChange,
@@ -710,6 +723,15 @@ function MasterDialog({
                     className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-orange-500 focus:bg-white"
                   />
                 </label>
+              </div>
+
+              <label className="block text-sm font-medium text-slate-700">Address
+                <textarea value={values.address} onChange={event=>onChange({...values,address:event.target.value})} className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3" rows={2}/>
+              </label>
+              <div className="grid gap-5 md:grid-cols-3">
+                <label className="block text-sm font-medium text-slate-700">District<select value={values.district_id} onChange={event=>onChange({...values,district_id:event.target.value})} className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><option value="">Select district</option>{districts.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
+                <label className="block text-sm font-medium text-slate-700">City<input value={values.city} onChange={event=>onChange({...values,city:event.target.value})} className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"/></label>
+                <label className="block text-sm font-medium text-slate-700">Pincode<input value={values.pincode} onChange={event=>onChange({...values,pincode:event.target.value.replace(/\D/g,"").slice(0,6)})} inputMode="numeric" pattern="\d{0,6}" maxLength={6} className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"/></label>
               </div>
 
               <label className="block text-sm font-medium text-slate-700">
