@@ -29,11 +29,16 @@ class CaseImportTests(unittest.TestCase):
  def test_template_and_valid_multi_visit_identity(self):
   wb=load_workbook(BytesIO(template_bytes(self.db,self.admin)));self.assertEqual(wb.sheetnames,["Case Import","Companies","Company Banks","Executives","Districts","Loan Types","Instructions"]);self.assertEqual([x.value for x in wb["Case Import"][1]],HEADERS)
   self.assertEqual(wb["Case Import"].freeze_panes,"A2");self.assertEqual(wb["Case Import"]["B2"].number_format,"@");self.assertEqual(wb["Case Import"]["G2"].number_format,"@")
+  sheet=wb["Case Import"];self.assertEqual(sheet.auto_filter.ref,"A1:P500");self.assertEqual(sheet.sheet_view.zoomScale,90);self.assertEqual(sheet.row_dimensions[1].height,34);self.assertEqual(sheet.row_dimensions[500].height,23)
+  self.assertEqual([sheet.column_dimensions[x].width for x in "ABCDEFGHIJKLMNOP"],[14,22,15,28,28,24,16,18,42,18,18,24,26,14,28,32])
+  self.assertEqual(sheet["A1"].fill.fgColor.rgb,"000F172A");self.assertEqual(sheet["A1"].font.color.rgb,"00FFFFFF");self.assertTrue(sheet["A1"].alignment.wrap_text);self.assertEqual(sheet["A1"].border.left.style,"thin")
+  self.assertEqual(sheet["A2"].fill.fgColor.rgb,"00FFFBEA");self.assertEqual(sheet["H2"].fill.fgColor.rgb,"00FFFFFF");self.assertEqual(sheet["B2"].alignment.horizontal,"left");self.assertEqual(sheet["A2"].alignment.horizontal,"center")
+  self.assertIsNone(sheet["A2"].value);self.assertEqual(wb["Instructions"]["A1"].value,"Case Import Instructions");self.assertTrue(any(cell.value=="Residence" for row in wb["Instructions"].iter_rows() for cell in row))
   self.assertIn("Agency",[x[0].value for x in wb["Companies"].iter_rows(min_row=2)]);self.assertNotIn("Inactive Co",[x[0].value for x in wb["Companies"].iter_rows(min_row=2)])
   self.assertIn("Exec One",[x[0].value for x in wb["Executives"].iter_rows(min_row=2)]);self.assertNotIn("Inactive Exec",[x[0].value for x in wb["Executives"].iter_rows(min_row=2)])
   self.assertIn("Jaipur",[x[0].value for x in wb["Districts"].iter_rows(min_row=2)]);self.assertIn("Home Loan",[x[0].value for x in wb["Loan Types"].iter_rows(min_row=2)])
   self.assertNotIn("Inactive District",[x[0].value for x in wb["Districts"].iter_rows(min_row=2)]);self.assertIn(("Agency","AU Bank"),[(x[0].value,x[1].value) for x in wb["Company Banks"].iter_rows(min_row=2)])
-  formulas={dv.formula1 for dv in wb["Case Import"].data_validations.dataValidation};self.assertIn('"Residence,Office,Permanent,Business,Other"',formulas);self.assertIn('"Pending,Positive,Negative"',formulas);self.assertTrue(any("VLOOKUP" in x for x in formulas))
+  validations=wb["Case Import"].data_validations.dataValidation;formulas={dv.formula1 for dv in validations};self.assertIn('"Residence,Office,Permanent,Business,Other"',formulas);self.assertIn('"Pending,Positive,Negative"',formulas);self.assertTrue(any("VLOOKUP" in x for x in formulas));self.assertTrue(all("500" in str(dv.sqref) for dv in validations))
   result=import_cases(self.db,self.admin,self.book([self.row(),self.row(**{"Visit Type":"Office","Receive Date":date(2026,8,2)})]));self.assertTrue(result.success);self.assertEqual((result.created_applications,result.created_visits),(1,2));self.assertEqual(self.db.query(CaseVisit).count(),2)
  def test_different_bank_creates_parent_and_existing_adds_visit(self):
   first=import_cases(self.db,self.admin,self.book([self.row()]));self.assertTrue(first.success)
