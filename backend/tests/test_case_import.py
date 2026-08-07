@@ -12,6 +12,8 @@ from app.models.case_visit import CaseVisit
 from app.models.master import Bank,Company,CompanyBank,District,Executive,LoanType
 from app.models.user import User,UserCompany
 from app.services.case_import_service import HEADERS,import_cases,template_bytes
+from app.services.smart_case_import_service import commit_import,preview_import,resume_import
+from app.schemas.case_import import ImportCommitRow
 from app.services.dashboard_service import get_dashboard_summary
 from app.services.monthly_billing_service import monthly_billing
 
@@ -60,5 +62,22 @@ class CaseImportTests(unittest.TestCase):
   result=import_cases(self.db,self.admin,self.book([self.row(**{"Status":"Positive"})]));self.assertTrue(result.success)
   dashboard=get_dashboard_summary(self.db);self.assertEqual((dashboard.total_cases,dashboard.positive_cases),(1,1))
   billing=monthly_billing(self.db,"2026-08");self.assertEqual(billing.summary.billable_cases,1)
+
+ def test_smart_preview_suggestion_duplicate_and_partial_commit(self):
+  wb=Workbook();ws=wb.active;ws.title="Case Import";ws.append(["visit type","LOS Application No","receive date","company","bank / finance company","applicant","mobile","loan type","address","district","city","landmark","executive","status","negative reason","remarks"])
+  ws.append(self.row(**{"Bank / Finance Company":"AU Bnak"}));ws.append(self.row(**{"Bank / Finance Company":"AU Bnak"}));out=BytesIO();wb.save(out)
+  preview=preview_import(self.db,self.admin,out.getvalue(),"smart.xlsx");self.assertEqual((preview.summary.total_rows,preview.summary.error_rows),(2,2))
+  bank_error=next(x for x in preview.rows[0].errors if x.field=="bank");self.assertEqual((bank_error.suggested_value,bank_error.confidence),("AU Bank","high"));self.assertTrue(any("Duplicate of Excel row 2" in x.message for x in preview.rows[1].errors))
+  fixed=dict(preview.rows[0].data);fixed["bank"]="AU Bank";result=commit_import(self.db,self.admin,preview.import_token,[ImportCommitRow(row_number=2,resolved_data=fixed)])
+  self.assertEqual((result.imported_rows,result.created_applications,result.remaining_rows),(1,1,1));self.assertEqual(self.db.query(Case).count(),1)
+  repeated=commit_import(self.db,self.admin,preview.import_token,[ImportCommitRow(row_number=2,resolved_data=fixed)]);self.assertIn("already imported",repeated.failed_rows[0].errors[0].message)
+
+ def test_smart_warning_resume_ownership_and_add_visit(self):
+  self.assertTrue(import_cases(self.db,self.admin,self.book([self.row()])).success)
+  preview=preview_import(self.db,self.admin,self.book([self.row(**{"Visit Type":"Office","Receive Date":date(2026,8,2)})]),"resume.xlsx")
+  self.assertEqual((preview.rows[0].state,preview.rows[0].intended_action),("WARNING","ADD_VISIT_TO_EXISTING_APPLICATION"));self.assertIn("Mobile already exists",preview.rows[0].warnings[0].message);self.assertEqual(resume_import(self.db,self.admin).import_token,preview.import_token)
+  other=User(full_name="Other Admin",username="other-admin",email="other-admin@test",password_hash="x",role="Admin");self.db.add(other);self.db.commit()
+  with self.assertRaises(PermissionError):commit_import(self.db,other,preview.import_token,[ImportCommitRow(row_number=2,resolved_data=preview.rows[0].data)])
+  result=commit_import(self.db,self.admin,preview.import_token,[ImportCommitRow(row_number=2,resolved_data=preview.rows[0].data)]);self.assertEqual((result.imported_rows,result.added_to_existing_applications),(1,1));self.assertEqual(self.db.query(CaseVisit).count(),2)
 
 if __name__=="__main__":unittest.main()

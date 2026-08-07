@@ -16,6 +16,7 @@ from app.models.case_visit import CaseVisit
 from app.models.case_activity import CaseActivity
 from app.models.billing import Billing
 from app.models.user import Permission, User, UserAuditLog, UserCompany, UserPermission, UserSession
+from app.models.case_import import CaseImportRow, CaseImportSession
 
 # Rate Masters
 from app.models.payout_rate import (
