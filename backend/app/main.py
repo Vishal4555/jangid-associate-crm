@@ -24,6 +24,7 @@ from app.api.notifications import router as notifications_router
 from app.api.users import me_router as user_company_me_router, router as users_router
 from app.api.permissions import router as permissions_router
 from app.api.case_visits import list_router as case_visit_list_router, router as case_visits_router
+from app.api.case_import import router as case_import_router
 from app.core.security import get_current_active_user, has_permission, require_any_permission, require_permission
 from app.core.company_scope import assert_company_access, assigned_company_ids
 from app.db.database import Base, engine, get_db
@@ -259,6 +260,7 @@ app.include_router(permissions_router)
 app.include_router(notifications_router)
 app.include_router(case_visits_router)
 app.include_router(case_visit_list_router)
+app.include_router(case_import_router)
 app.include_router(auth_router, prefix="/api")
 app.include_router(billing_router, prefix="/api", include_in_schema=False)
 app.include_router(payout_rates_router, prefix="/api", include_in_schema=False)
@@ -271,6 +273,7 @@ app.include_router(permissions_router, prefix="/api")
 app.include_router(notifications_router, prefix="/api", include_in_schema=False)
 app.include_router(case_visits_router, prefix="/api", include_in_schema=False)
 app.include_router(case_visit_list_router, prefix="/api", include_in_schema=False)
+app.include_router(case_import_router, prefix="/api", include_in_schema=False)
 app.include_router(follow_ups_router)
 app.include_router(follow_ups_router, prefix="/api", include_in_schema=False)
 

@@ -1,4 +1,4 @@
-import { Download, Plus, RefreshCw, Search, X } from "lucide-react";
+import { Download, Plus, RefreshCw, Search, Upload, X } from "lucide-react";
 import { Card, PageHeader } from "../ui";
 import type { ReactNode } from "react";
 import type { Bank, Company, District, Executive } from "../../types/master";
@@ -12,7 +12,7 @@ type Props = {
   companies: Company[]; banks: Bank[]; districts: District[]; executives: Executive[];
   onSearchChange: (value: string) => void; onStatusChange: (value: CaseStatusFilter) => void;
   onFilterChange: (name: FilterName, value: string) => void; onClearFilters: () => void;
-  onRefresh: () => void; onAddCase: () => void; onExport: () => void; canAdd: boolean;
+  onRefresh: () => void; onAddCase: () => void; onExport: () => void; onDownloadTemplate:()=>void; onImport:()=>void; canAdd: boolean;
 };
 
 const fieldClass = "w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 transition focus:border-orange-400 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white";
@@ -25,6 +25,8 @@ export default function CaseToolbar(props: Props) {
   return <Card className="mb-4">
     <PageHeader eyebrow="Cases" title="All Visits" subtitle={`${props.totalCount} visits found`} actions={<>
         {props.canAdd && <button onClick={props.onAddCase} className="flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"><Plus size={18}/>New Case</button>}
+        {props.canAdd && <button onClick={props.onDownloadTemplate} className="flex items-center gap-2 rounded-xl border px-4 py-2.5"><Download size={18}/>Download Template</button>}
+        {props.canAdd && <button onClick={props.onImport} className="flex items-center gap-2 rounded-xl border px-4 py-2.5"><Upload size={18}/>Import Cases</button>}
         <button onClick={props.onRefresh} disabled={props.refreshing} className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-slate-700 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"><RefreshCw size={18} className={props.refreshing ? "animate-spin" : ""}/>{props.refreshing ? "Refreshing..." : "Refresh"}</button>
         <button onClick={props.onExport} disabled={props.exporting} className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-slate-700 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"><Download size={18}/>{props.exporting ? "Exporting..." : "Export"}</button>
       </>} />

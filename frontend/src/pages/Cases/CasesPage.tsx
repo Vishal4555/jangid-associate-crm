@@ -8,6 +8,8 @@ import AddCaseModal from "../../components/cases/AddCaseModal";
 import EditCaseModal from "../../components/cases/EditCaseModal";
 import DeleteCaseDialog from "../../components/cases/DeleteCaseDialog";
 import ViewCaseModal from "../../components/cases/ViewCaseModal";
+import CaseImportModal from "../../components/cases/CaseImportModal";
+import {downloadCaseTemplate} from "../../services/caseImportService";
 
 import { getCaseVisitRows } from "../../services/caseService";
 import { listMasters } from "../../services/masterService";
@@ -62,6 +64,7 @@ export default function CasesPage() {
   const [noCompanies,setNoCompanies]=useState(false);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isImportOpen,setIsImportOpen]=useState(false);
   const [editingCase, setEditingCase] = useState<CaseVisitRow | null>(null);
   const [deletingCase, setDeletingCase] = useState<CaseVisitRow | null>(null);
   const [viewingCase, setViewingCase] = useState<CaseVisitRow | null>(null);
@@ -217,6 +220,8 @@ export default function CasesPage() {
         onClearFilters={clearFilters}
         onRefresh={() => void loadCases({ silent: true })}
         onAddCase={() => setIsAddOpen(true)}
+        onDownloadTemplate={()=>void downloadCaseTemplate().catch(()=>setError("Unable to download import template."))}
+        onImport={()=>setIsImportOpen(true)}
         onExport={handleExport}
         canAdd={has("cases.create")&&!noCompanies}
       />
@@ -274,6 +279,7 @@ export default function CasesPage() {
         caseItem={viewingCase}
         onClose={() => setViewingCase(null)}
       />
+      {isImportOpen&&<CaseImportModal onClose={()=>setIsImportOpen(false)} onImported={async()=>{await loadCases({silent:true})}}/>}
 
       </div>
 
