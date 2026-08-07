@@ -1,12 +1,17 @@
-import os,unittest
+import asyncio,os,unittest
 from datetime import date
 from io import BytesIO
 os.environ.setdefault("DATABASE_URL","sqlite://")
 from openpyxl import Workbook,load_workbook
+from fastapi import HTTPException,UploadFile
+from starlette.datastructures import Headers
 from sqlalchemy import create_engine,select
 from sqlalchemy.orm import Session
+from sqlalchemy.pool import StaticPool
 import app.db.base  # noqa
 from app.db.database import Base
+from app.main import app
+from app.api.case_import import preview_cases
 from app.models.case import Case
 from app.models.case_visit import CaseVisit
 from app.models.master import Bank,Company,CompanyBank,District,Executive,LoanType
@@ -19,7 +24,7 @@ from app.services.monthly_billing_service import monthly_billing
 
 class CaseImportTests(unittest.TestCase):
  def setUp(self):
-  self.engine=create_engine("sqlite://");Base.metadata.create_all(self.engine);self.db=Session(self.engine)
+  self.engine=create_engine("sqlite://",connect_args={"check_same_thread":False},poolclass=StaticPool);Base.metadata.create_all(self.engine);self.db=Session(self.engine)
   self.company=Company(name="Agency",is_active=True);self.other=Company(name="Other",is_active=True);self.inactive_company=Company(name="Inactive Co",is_active=False);self.bank=Bank(name="AU Bank");self.bank2=Bank(name="BOB");self.district=District(name="Jaipur",state="Rajasthan",is_active=True);self.inactive_district=District(name="Inactive District",state="Rajasthan",is_active=False);self.executive=Executive(full_name="Exec One",status="Active");self.inactive_executive=Executive(full_name="Inactive Exec",status="Inactive");self.loan=LoanType(name="Home Loan");self.admin=User(full_name="Admin",username="import-admin",email="import-admin@test",password_hash="x",role="Admin");self.db.add_all([self.company,self.other,self.inactive_company,self.bank,self.bank2,self.district,self.inactive_district,self.executive,self.inactive_executive,self.loan,self.admin]);self.db.commit()
  def tearDown(self):self.db.close();self.engine.dispose()
  def book(self,rows):
@@ -85,5 +90,19 @@ class CaseImportTests(unittest.TestCase):
   for index,value in enumerate(self.row(),1):ws.cell(2,index).value=value
   out=BytesIO();wb.save(out);preview=preview_import(self.db,self.admin,out.getvalue(),"case_import_template.xlsx")
   self.assertEqual(preview.summary.total_rows,1);self.assertEqual(preview.rows[0].state,"VALID");self.assertEqual(preview.rows[0].data["los_no"],"LOS-1")
+
+ def test_preview_endpoint_uploadfile_contract_extension_and_empty_template(self):
+  template=template_bytes(self.db,self.admin);wb=load_workbook(BytesIO(template));ws=wb["Case Import"]
+  for index,value in enumerate(self.row(),1):ws.cell(2,index).value=value
+  populated=BytesIO();wb.save(populated);mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  upload=UploadFile(BytesIO(populated.getvalue()),filename="case_import_template.xlsx",headers=Headers({"content-type":mime}))
+  response=asyncio.run(preview_cases(upload,self.db,self.admin));self.assertEqual(response.summary.total_rows,1)
+  invalid=UploadFile(BytesIO(b"x"),filename="cases.csv",headers=Headers({"content-type":"text/csv"}))
+  with self.assertRaises(HTTPException) as raised:asyncio.run(preview_cases(invalid,self.db,self.admin))
+  self.assertEqual(raised.exception.status_code,415)
+  blank=UploadFile(BytesIO(template),filename="case_import_template.xlsx",headers=Headers({"content-type":mime}))
+  self.assertEqual(asyncio.run(preview_cases(blank,self.db,self.admin)).summary.total_rows,0)
+  operation=app.openapi()["paths"]["/cases/import/preview"]["post"];self.assertIn("multipart/form-data",operation["requestBody"]["content"])
+  schema=operation["requestBody"]["content"]["multipart/form-data"]["schema"];self.assertTrue(schema)
 
 if __name__=="__main__":unittest.main()

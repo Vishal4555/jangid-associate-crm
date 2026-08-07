@@ -24,7 +24,7 @@ export function normalizePreview(value:unknown):ImportPreview{
 export function apiErrorMessage(error:unknown,fallback:string){
  const source=record(error),response=record(source.response),data=record(response.data),detail=data.detail;
  if(typeof detail==="string"&&detail.trim())return detail;
- if(Array.isArray(detail))return detail.map(item=>text(record(item).msg)||text(item)).filter(Boolean).join("; ")||fallback;
+ if(Array.isArray(detail))return detail.map(item=>{const issue=record(item),location=list(issue.loc).map(text).filter(part=>part&&part!=="body");const message=text(issue.msg)||text(item);return location.length?`${location.join(".")} — ${message}`:message}).filter(Boolean).join("; ")||fallback;
  if(detail&&typeof detail==="object")return text(detail)||fallback;
  return text(source.message)||fallback;
 }
