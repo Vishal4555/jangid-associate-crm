@@ -29,8 +29,10 @@ async def preview_cases(file:UploadFile=File(...),db:Session=Depends(get_db),use
     content=await file.read(MAX_IMPORT_SIZE+1)
     if len(content)>MAX_IMPORT_SIZE:raise HTTPException(status_code=413,detail="Import file exceeds 2 MB")
     try:return preview_import(db,user,content,file.filename)
-    except ValueError as exc:raise HTTPException(status_code=422,detail=str(exc)) from exc
-    except Exception as exc:raise HTTPException(status_code=422,detail="Invalid XLSX file") from exc
+    except ValueError as exc:
+        db.rollback();raise HTTPException(status_code=422,detail=str(exc)) from exc
+    except Exception as exc:
+        db.rollback();raise HTTPException(status_code=500,detail="Import preview is temporarily unavailable") from exc
 
 @router.post("/commit",response_model=ImportCommitResponse)
 def commit_cases(payload:ImportCommitRequest,db:Session=Depends(get_db),user:User=Depends(require_permission("cases.create"))):

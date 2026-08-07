@@ -80,4 +80,10 @@ class CaseImportTests(unittest.TestCase):
   with self.assertRaises(PermissionError):commit_import(self.db,other,preview.import_token,[ImportCommitRow(row_number=2,resolved_data=preview.rows[0].data)])
   result=commit_import(self.db,self.admin,preview.import_token,[ImportCommitRow(row_number=2,resolved_data=preview.rows[0].data)]);self.assertEqual((result.imported_rows,result.added_to_existing_applications),(1,1));self.assertEqual(self.db.query(CaseVisit).count(),2)
 
+ def test_downloaded_template_populated_then_previewed(self):
+  wb=load_workbook(BytesIO(template_bytes(self.db,self.admin)));ws=wb["Case Import"]
+  for index,value in enumerate(self.row(),1):ws.cell(2,index).value=value
+  out=BytesIO();wb.save(out);preview=preview_import(self.db,self.admin,out.getvalue(),"case_import_template.xlsx")
+  self.assertEqual(preview.summary.total_rows,1);self.assertEqual(preview.rows[0].state,"VALID");self.assertEqual(preview.rows[0].data["los_no"],"LOS-1")
+
 if __name__=="__main__":unittest.main()
