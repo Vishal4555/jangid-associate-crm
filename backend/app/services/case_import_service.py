@@ -4,13 +4,17 @@ import re
 from uuid import uuid4
 
 from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Font, PatternFill
+from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.workbook.defined_name import DefinedName
+from openpyxl.utils import get_column_letter
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.company_scope import assigned_company_ids
 from app.models.case import Case
 from app.models.case_visit import CaseVisit
-from app.models.master import Bank, Company, CompanyBank, District, Executive
+from app.models.master import Bank, Company, CompanyBank, District, Executive, LoanType
 from app.models.user import User
 from app.schemas.case_import import CaseImportError, CaseImportResponse
 
@@ -22,12 +26,47 @@ STATUSES = {"Pending","Positive","Negative"}
 def _key(value): return " ".join(str(value or "").strip().casefold().split())
 def _text(value): return " ".join(str(value or "").strip().split()) or None
 
-def template_bytes() -> bytes:
-    wb=Workbook(); ws=wb.active; ws.title="Case Import"; ws.append(HEADERS)
-    ws.append(["Residence","LOS-001",date.today(),"Example Company","Example Bank","Applicant Name","9876543210","Home Loan","Applicant address","Jaipur","Jaipur","Near landmark","Executive Name","Pending","","Optional remarks"])
+def template_bytes(db:Session,user:User) -> bytes:
+    scope=assigned_company_ids(user)
+    company_query=select(Company).where(Company.is_active.is_(True)).order_by(Company.name)
+    if scope is not None: company_query=company_query.where(Company.id.in_(scope))
+    companies=list(db.scalars(company_query).all()); all_banks=list(db.scalars(select(Bank).order_by(Bank.name)).all())
+    inactive={(x.company_id,x.bank_id) for x in db.scalars(select(CompanyBank).where(CompanyBank.is_active.is_(False))).all()}
+    executives=list(db.scalars(select(Executive).where(Executive.status=="Active").order_by(Executive.full_name)).all())
+    if user.role=="Executive": executives=[user.executive] if user.executive and user.executive.status=="Active" else []
+    districts=list(db.scalars(select(District).where(District.is_active.is_(True)).order_by(District.name)).all())
+    loans=list(db.scalars(select(LoanType).order_by(LoanType.name)).all())
+    wb=Workbook();ws=wb.active;ws.title="Case Import";ws.append(HEADERS);ws.freeze_panes="A2";ws.auto_filter.ref=f"A1:P500"
+    required_fill=PatternFill("solid",fgColor="FFF2CC");optional_fill=PatternFill("solid",fgColor="E7E6E6")
+    widths=[16,24,15,24,26,24,16,20,32,20,20,24,24,16,24,30]
+    for i,(name,width) in enumerate(zip(HEADERS,widths),1):
+        cell=ws.cell(1,i);cell.font=Font(bold=True,color="FFFFFF");cell.fill=PatternFill("solid",fgColor="0F172A");ws.column_dimensions[get_column_letter(i)].width=width
+        for row in range(2,502):ws.cell(row,i).fill=required_fill if name in REQUIRED else optional_fill
+    for row in range(2,502):ws.cell(row,3).number_format="yyyy-mm-dd";ws.cell(row,2).number_format="@";ws.cell(row,7).number_format="@"
+    company_sheet=wb.create_sheet("Companies");company_sheet.append(["Company","Bank Range"])
+    bank_sheet=wb.create_sheet("Company Banks");bank_sheet.append(["Company","Bank / Finance Company"])
+    for company in companies:
+        range_name=f"CompanyBanks_{company.id}";company_sheet.append([company.name,range_name]);start=bank_sheet.max_row+1
+        valid=[bank for bank in all_banks if (company.id,bank.id) not in inactive]
+        for bank in valid:bank_sheet.append([company.name,bank.name])
+        end=bank_sheet.max_row
+        if end>=start:wb.defined_names.add(DefinedName(range_name,attr_text=f"'Company Banks'!$B${start}:$B${end}"))
+    exec_sheet=wb.create_sheet("Executives");exec_sheet.append(["Executive"])
+    for x in executives:exec_sheet.append([x.full_name])
+    district_sheet=wb.create_sheet("Districts");district_sheet.append(["District"])
+    for x in districts:district_sheet.append([x.name])
+    loan_sheet=wb.create_sheet("Loan Types");loan_sheet.append(["Loan Type"])
+    for x in loans:loan_sheet.append([x.name])
     instructions=wb.create_sheet("Instructions")
-    rows=[("Item","Rule"),("Required columns",", ".join(x for x in HEADERS if x in REQUIRED)),("Visit Type","Residence, Office, Permanent, Business, Other"),("Status","Pending, Positive, Negative"),("Receive Date","YYYY-MM-DD"),("Identity","Company + Bank / Finance Company + LOS / Application No"),("Matching","Company, bank, district, and executive names must match active master records"),("Negative Reason","Required when Status is Negative")]
-    for row in rows: instructions.append(row)
+    for row in [("Item","Rule"),("Required columns",", ".join(x for x in HEADERS if x in REQUIRED)),("Visit Type",", ".join(sorted(VISIT_TYPES))),("Status",", ".join(sorted(STATUSES))),("Receive Date","YYYY-MM-DD"),("Identity","Company + Bank / Finance Company + LOS / Application No"),("Dropdowns","Choose exact active master values; backend validation remains authoritative"),("Negative Reason","Required only when Status is Negative")]:instructions.append(row)
+    if companies:
+        wb.defined_names.add(DefinedName("CompanyList",attr_text=f"Companies!$A$2:$A${company_sheet.max_row}"));wb.defined_names.add(DefinedName("CompanyRangeLookup",attr_text=f"Companies!$A$2:$B${company_sheet.max_row}"))
+    for name,sheet in (("ExecutiveList",exec_sheet),("DistrictList",district_sheet),("LoanTypeList",loan_sheet)):
+        if sheet.max_row>=2:wb.defined_names.add(DefinedName(name,attr_text=f"'{sheet.title}'!$A$2:$A${sheet.max_row}"))
+    validations=((1,'"Residence,Office,Permanent,Business,Other"'),(4,"=CompanyList"),(5,'=INDIRECT(VLOOKUP($D2,CompanyRangeLookup,2,FALSE))'),(8,"=LoanTypeList"),(10,"=DistrictList"),(13,"=ExecutiveList"),(14,'"Pending,Positive,Negative"'))
+    for column,formula in validations:
+        dv=DataValidation(type="list",formula1=formula,allow_blank=HEADERS[column-1] not in REQUIRED);dv.error="Select a value from the dropdown.";dv.errorTitle="Invalid value";dv.showErrorMessage=True;dv.errorStyle="stop";ws.add_data_validation(dv);dv.add(f"{get_column_letter(column)}2:{get_column_letter(column)}501")
+    for sheet in (company_sheet,bank_sheet,exec_sheet,district_sheet,loan_sheet):sheet.sheet_state="hidden"
     out=BytesIO();wb.save(out);return out.getvalue()
 
 def _date(value):

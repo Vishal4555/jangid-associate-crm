@@ -9,7 +9,7 @@ import app.db.base  # noqa
 from app.db.database import Base
 from app.models.case import Case
 from app.models.case_visit import CaseVisit
-from app.models.master import Bank,Company,District,Executive
+from app.models.master import Bank,Company,CompanyBank,District,Executive,LoanType
 from app.models.user import User,UserCompany
 from app.services.case_import_service import HEADERS,import_cases,template_bytes
 from app.services.dashboard_service import get_dashboard_summary
@@ -18,7 +18,7 @@ from app.services.monthly_billing_service import monthly_billing
 class CaseImportTests(unittest.TestCase):
  def setUp(self):
   self.engine=create_engine("sqlite://");Base.metadata.create_all(self.engine);self.db=Session(self.engine)
-  self.company=Company(name="Agency",is_active=True);self.other=Company(name="Other",is_active=True);self.bank=Bank(name="AU Bank");self.bank2=Bank(name="BOB");self.district=District(name="Jaipur",state="Rajasthan",is_active=True);self.executive=Executive(full_name="Exec One",status="Active");self.admin=User(full_name="Admin",username="import-admin",email="import-admin@test",password_hash="x",role="Admin");self.db.add_all([self.company,self.other,self.bank,self.bank2,self.district,self.executive,self.admin]);self.db.commit()
+  self.company=Company(name="Agency",is_active=True);self.other=Company(name="Other",is_active=True);self.inactive_company=Company(name="Inactive Co",is_active=False);self.bank=Bank(name="AU Bank");self.bank2=Bank(name="BOB");self.district=District(name="Jaipur",state="Rajasthan",is_active=True);self.inactive_district=District(name="Inactive District",state="Rajasthan",is_active=False);self.executive=Executive(full_name="Exec One",status="Active");self.inactive_executive=Executive(full_name="Inactive Exec",status="Inactive");self.loan=LoanType(name="Home Loan");self.admin=User(full_name="Admin",username="import-admin",email="import-admin@test",password_hash="x",role="Admin");self.db.add_all([self.company,self.other,self.inactive_company,self.bank,self.bank2,self.district,self.inactive_district,self.executive,self.inactive_executive,self.loan,self.admin]);self.db.commit()
  def tearDown(self):self.db.close();self.engine.dispose()
  def book(self,rows):
   wb=Workbook();ws=wb.active;ws.title="Case Import";ws.append(HEADERS)
@@ -27,7 +27,13 @@ class CaseImportTests(unittest.TestCase):
  def row(self,**changes):
   values={"Visit Type":"Residence","LOS / Application No":"LOS-1","Receive Date":date(2026,8,1),"Company":"Agency","Bank / Finance Company":"AU Bank","Applicant":"Applicant","Mobile":"9876543210","Loan Type":"","Address":"Address","District":"Jaipur","City":"Jaipur","Landmark":"","Executive":"Exec One","Status":"Pending","Negative Reason":"","Remarks":""};values.update(changes);return [values[x] for x in HEADERS]
  def test_template_and_valid_multi_visit_identity(self):
-  wb=load_workbook(BytesIO(template_bytes()));self.assertEqual(wb.sheetnames,["Case Import","Instructions"]);self.assertEqual([x.value for x in wb["Case Import"][1]],HEADERS)
+  wb=load_workbook(BytesIO(template_bytes(self.db,self.admin)));self.assertEqual(wb.sheetnames,["Case Import","Companies","Company Banks","Executives","Districts","Loan Types","Instructions"]);self.assertEqual([x.value for x in wb["Case Import"][1]],HEADERS)
+  self.assertEqual(wb["Case Import"].freeze_panes,"A2");self.assertEqual(wb["Case Import"]["B2"].number_format,"@");self.assertEqual(wb["Case Import"]["G2"].number_format,"@")
+  self.assertIn("Agency",[x[0].value for x in wb["Companies"].iter_rows(min_row=2)]);self.assertNotIn("Inactive Co",[x[0].value for x in wb["Companies"].iter_rows(min_row=2)])
+  self.assertIn("Exec One",[x[0].value for x in wb["Executives"].iter_rows(min_row=2)]);self.assertNotIn("Inactive Exec",[x[0].value for x in wb["Executives"].iter_rows(min_row=2)])
+  self.assertIn("Jaipur",[x[0].value for x in wb["Districts"].iter_rows(min_row=2)]);self.assertIn("Home Loan",[x[0].value for x in wb["Loan Types"].iter_rows(min_row=2)])
+  self.assertNotIn("Inactive District",[x[0].value for x in wb["Districts"].iter_rows(min_row=2)]);self.assertIn(("Agency","AU Bank"),[(x[0].value,x[1].value) for x in wb["Company Banks"].iter_rows(min_row=2)])
+  formulas={dv.formula1 for dv in wb["Case Import"].data_validations.dataValidation};self.assertIn('"Residence,Office,Permanent,Business,Other"',formulas);self.assertIn('"Pending,Positive,Negative"',formulas);self.assertTrue(any("VLOOKUP" in x for x in formulas))
   result=import_cases(self.db,self.admin,self.book([self.row(),self.row(**{"Visit Type":"Office","Receive Date":date(2026,8,2)})]));self.assertTrue(result.success);self.assertEqual((result.created_applications,result.created_visits),(1,2));self.assertEqual(self.db.query(CaseVisit).count(),2)
  def test_different_bank_creates_parent_and_existing_adds_visit(self):
   first=import_cases(self.db,self.admin,self.book([self.row()]));self.assertTrue(first.success)
@@ -39,6 +45,7 @@ class CaseImportTests(unittest.TestCase):
   manager=User(full_name="Manager",username="import-manager",email="import-manager@test",password_hash="x",role="Manager");self.db.add(manager);self.db.flush();self.db.add(UserCompany(user_id=manager.id,company_id=self.company.id));self.db.commit()
   negative=import_cases(self.db,manager,self.book([self.row(**{"Status":"Negative"})]));self.assertFalse(negative.success)
   scoped=import_cases(self.db,manager,self.book([self.row(**{"Company":"Other"})]));self.assertFalse(scoped.success);self.assertTrue(any("not assigned" in x.message for x in scoped.errors))
+  wb=load_workbook(BytesIO(template_bytes(self.db,manager)));self.assertEqual([x[0].value for x in wb["Companies"].iter_rows(min_row=2)],["Agency"])
  def test_invalid_masters_and_executive_own_scope(self):
   for field,value in (("Bank / Finance Company","Missing"),("District","Missing"),("Executive","Missing")):
    result=import_cases(self.db,self.admin,self.book([self.row(**{field:value})]));self.assertFalse(result.success);self.assertEqual(self.db.query(Case).count(),0)

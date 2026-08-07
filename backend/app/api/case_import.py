@@ -12,8 +12,8 @@ router=APIRouter(prefix="/cases/import",tags=["case import"])
 MAX_IMPORT_SIZE=2*1024*1024
 
 @router.get("/template")
-def download_template(_:User=Depends(require_permission("cases.create"))):
-    return StreamingResponse(BytesIO(template_bytes()),media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",headers={"Content-Disposition":'attachment; filename="case_import_template.xlsx"'})
+def download_template(db:Session=Depends(get_db),user:User=Depends(require_permission("cases.create"))):
+    return StreamingResponse(BytesIO(template_bytes(db,user)),media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",headers={"Content-Disposition":'attachment; filename="case_import_template.xlsx"'})
 
 @router.post("",response_model=CaseImportResponse)
 async def upload_cases(file:UploadFile=File(...),db:Session=Depends(get_db),user:User=Depends(require_permission("cases.create"))):
