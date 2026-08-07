@@ -125,19 +125,14 @@ def import_cases(db:Session,user:User,content:bytes)->CaseImportResponse:
         if not 10<=len(mobile)<=15:errors.append(CaseImportError(row=number,field="Mobile",value=_text(values["Mobile"]),message="Mobile must contain 10 to 15 digits"))
         identity=(_key(values["Company"]),_key(values["Bank / Finance Company"]),_key(values["LOS / Application No"]),_key(values["Visit Type"]),received)
         if identity in seen:errors.append(CaseImportError(row=number,field="Row",message="Duplicate visit row in file"))
-        if company and bank and _text(values["LOS / Application No"]):
-            current=db.scalar(select(Case).where(Case.company_id==company.id,
-                func.lower(func.trim(Case.bank))==_key(bank.name),
-                func.lower(func.trim(Case.los_no))==_key(values["LOS / Application No"])))
-            if current is not None and _key(current.applicant)!=_key(values["Applicant"]):
-                errors.append(CaseImportError(row=number,field="Applicant",value=_text(values["Applicant"]),message="Existing application has a different applicant"))
         seen.add(identity);parsed.append((number,values,company,bank,district,executive,received,mobile))
     if errors:return CaseImportResponse(success=False,errors=errors)
     created,visits,existing=0,0,set()
     try:
         for _,v,company,bank,district,executive,received,mobile in parsed:
             los=_text(v["LOS / Application No"])
-            parent=db.scalar(select(Case).where(Case.company_id==company.id,func.lower(func.trim(Case.bank))==_key(bank.name),func.lower(func.trim(Case.los_no))==_key(los)).with_for_update())
+            candidates=db.scalars(select(Case).where(Case.company_id==company.id,func.lower(func.trim(Case.bank))==_key(bank.name),func.lower(func.trim(Case.los_no))==_key(los)).with_for_update()).all()
+            parent=next((item for item in candidates if _key(item.applicant)==_key(v["Applicant"])),None)
             if parent is None:
                 parent=Case(case_no=f"JA-{uuid4().hex[:12].upper()}",los_no=los,receive_date=received,company_id=company.id,company=company.name,bank=bank.name,applicant=_text(v["Applicant"]),mobile=mobile,loan_type=_text(v["Loan Type"]),address=_text(v["Address"]),district_id=district.id,district=district.name,city=_text(v["City"]),executive=executive.full_name,status=_text(v["Status"]));db.add(parent);db.flush();created+=1
             else: existing.add(parent.id)

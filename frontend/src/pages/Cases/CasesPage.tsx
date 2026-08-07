@@ -51,6 +51,7 @@ export default function CasesPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice,setNotice]=useState<string|null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<CaseStatusFilter>("All");
   const [visitType,setVisitType]=useState<"All"|VisitType>("All");
@@ -205,6 +206,7 @@ export default function CasesPage() {
       <div className="w-full min-w-0">
 
       {noCompanies&&<p className="mb-4 rounded-xl bg-amber-50 p-4 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">No companies assigned. Contact Admin.</p>}
+      {notice&&<p className="mb-4 rounded-xl bg-amber-50 p-4 text-amber-800">{notice}</p>}
 
       <CaseToolbar
         search={search}
@@ -248,7 +250,8 @@ export default function CasesPage() {
       <AddCaseModal
         open={isAddOpen}
         onClose={() => setIsAddOpen(false)}
-        onCreated={() => {
+        onCreated={(created) => {
+          setNotice(created.message||"Case saved.");
           setIsAddOpen(false);
           void loadCases({ silent: true });
         }}

@@ -65,6 +65,7 @@ export interface Case {
   next_follow_up_at: string;
 
   follow_up_note: string;
+  message?: string;
 }
 
 export type CaseStatusFilter = "All" | CaseStatus;

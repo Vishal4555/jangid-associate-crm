@@ -53,6 +53,23 @@ class CaseCreateLosFlowTests(unittest.TestCase):
         self.assertEqual(self.db.scalar(select(func.count(Case.id))), 3)
         self.assertEqual(self.db.scalar(select(func.count(CaseVisit.id))), 3)
 
+    def test_same_los_different_applicants_create_distinct_parents(self):
+        first = create_case(self.payload(applicant="Ravi Kumar", visit_type="Residence", mobile="9999999999"), self.db, self.user)
+        second = create_case(self.payload(applicant="Seema Sharma", visit_type="Office", mobile="9999999999"), self.db, self.user)
+        third = create_case(self.payload(applicant="Mohan Lal", visit_type="Permanent", mobile="9999999999"), self.db, self.user)
+        self.assertEqual(len({first.id, second.id, third.id}), 3)
+        self.assertIn("Mobile already exists in 1 visits.", second.message)
+        self.assertIn("Mobile already exists in 2 visits.", third.message)
+        self.assertEqual(self.db.scalar(select(func.count(Case.id))), 3)
+        self.assertEqual(self.db.scalar(select(func.count(CaseVisit.id))), 3)
+
+    def test_normalized_same_applicant_reuses_parent(self):
+        first = create_case(self.payload(applicant="  Ravi   Kumar  "), self.db, self.user)
+        second = create_case(self.payload(applicant="ravi kumar", visit_type="Business"), self.db, self.user)
+        self.assertEqual(first.id, second.id)
+        self.assertEqual(self.db.scalar(select(func.count(Case.id))), 1)
+        self.assertEqual(self.db.scalar(select(func.count(CaseVisit.id))), 2)
+
     def test_blank_los_is_invalid(self):
         with self.assertRaises(HTTPException) as error:
             create_case(self.payload(los_no="  "), self.db, self.user)

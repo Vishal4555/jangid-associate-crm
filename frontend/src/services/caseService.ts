@@ -35,6 +35,7 @@ export type CaseApiResponse = {
   remarks: string | null;
   next_follow_up_at: string | null;
   follow_up_note: string | null;
+  message?: string | null;
 };
 
 export function mapCaseResponse(data: CaseApiResponse): Case {
@@ -66,6 +67,7 @@ export function mapCaseResponse(data: CaseApiResponse): Case {
     remarks: data.remarks ?? "",
     next_follow_up_at: data.next_follow_up_at ?? "",
     follow_up_note: data.follow_up_note ?? "",
+    message: data.message ?? "",
   };
 }
 

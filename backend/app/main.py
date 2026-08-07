@@ -361,13 +361,15 @@ def create_case(
     _validate_case_dimensions(db, case_data)
     if case_data.get("status") in {"Positive", "Negative"}:
         case_data["closed_date"] = date.today()
+    mobile_visit_count = db.scalar(select(func.count(CaseVisit.id)).join(Case).where(Case.mobile == case_data.get("mobile"))) or 0 if case_data.get("mobile") else 0
 
     try:
-        matches = db.scalars(select(Case).where(
+        candidates = db.scalars(select(Case).where(
             func.lower(func.trim(Case.los_no)) == case_data["los_no"].casefold(),
             Case.company_id == case_data.get("company_id"),
             func.lower(func.trim(Case.bank)) == _normalized_identity(case_data.get("bank")),
         ).with_for_update()).all()
+        matches = [item for item in candidates if _normalized_identity(item.applicant) == _normalized_identity(case_data.get("applicant"))]
         if len(matches) > 1:
             raise HTTPException(status_code=409, detail="Multiple parent cases already use this LOS / Application No; resolve the data before adding a visit.")
         if matches:
@@ -412,7 +414,7 @@ def create_case(
             remarks=f"Visit #{first_visit.id} ({first_visit.visit_type})"))
         db.commit()
         db.refresh(new_case)
-        new_case.message = result_message
+        new_case.message = result_message + (f" Mobile already exists in {mobile_visit_count} visits." if mobile_visit_count else "")
     except HTTPException:
         db.rollback()
         raise

@@ -85,6 +85,18 @@ class CaseImportTests(unittest.TestCase):
   with self.assertRaises(PermissionError):commit_import(self.db,other,preview.import_token,[ImportCommitRow(row_number=2,resolved_data=preview.rows[0].data)])
   result=commit_import(self.db,self.admin,preview.import_token,[ImportCommitRow(row_number=2,resolved_data=preview.rows[0].data)]);self.assertEqual((result.imported_rows,result.added_to_existing_applications),(1,1));self.assertEqual(self.db.query(CaseVisit).count(),2)
 
+ def test_reused_los_different_applicants_create_parents_and_visits(self):
+  rows=[self.row(**{"Applicant":"Applicant One","Visit Type":"Residence","Status":"Positive"}),self.row(**{"Applicant":"Applicant Two","Visit Type":"Office","Status":"Positive"}),self.row(**{"Applicant":"Applicant Three","Visit Type":"Permanent","Status":"Positive"})]
+  preview=preview_import(self.db,self.admin,self.book(rows),"reused-los.xlsx")
+  self.assertTrue(all(row.state=="VALID" for row in preview.rows));self.assertTrue(all(row.intended_action=="CREATE_APPLICATION_AND_VISIT" for row in preview.rows))
+  result=commit_import(self.db,self.admin,preview.import_token,[ImportCommitRow(row_number=row.row_number,resolved_data=row.data) for row in preview.rows])
+  self.assertEqual((result.imported_rows,result.created_applications),(3,3));self.assertEqual(self.db.query(Case).count(),3);self.assertEqual(self.db.query(CaseVisit).count(),3)
+  self.assertEqual(get_dashboard_summary(self.db).total_cases,3);self.assertEqual(monthly_billing(self.db,"2026-08").summary.billable_cases,3)
+
+ def test_legacy_import_reused_los_different_applicant_creates_parent(self):
+  first=import_cases(self.db,self.admin,self.book([self.row(**{"Applicant":"First"})]));second=import_cases(self.db,self.admin,self.book([self.row(**{"Applicant":"Second","Visit Type":"Office"})]))
+  self.assertTrue(first.success and second.success);self.assertEqual(self.db.query(Case).count(),2);self.assertEqual(self.db.query(CaseVisit).count(),2)
+
  def test_downloaded_template_populated_then_previewed(self):
   wb=load_workbook(BytesIO(template_bytes(self.db,self.admin)));ws=wb["Case Import"]
   for index,value in enumerate(self.row(),1):ws.cell(2,index).value=value

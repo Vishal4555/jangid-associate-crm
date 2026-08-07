@@ -113,8 +113,8 @@ def _validate(db,user,data,duplicate_row=None):
     if duplicate_row:errors.append(_issue("row",None,f"Duplicate of Excel row {duplicate_row}"))
     existing=None
     if company and bank and _text(data.get("los_no")):
-        existing=db.scalar(select(Case).where(Case.company_id==company.id,func.lower(func.trim(Case.bank))==_key(bank.name),func.lower(func.trim(Case.los_no))==_key(data.get("los_no"))))
-        if existing and _key(existing.applicant)!=_key(data.get("applicant")):errors.append(_issue("applicant",data.get("applicant"),"Existing application has a different applicant"))
+        candidates=db.scalars(select(Case).where(Case.company_id==company.id,func.lower(func.trim(Case.bank))==_key(bank.name),func.lower(func.trim(Case.los_no))==_key(data.get("los_no")))).all()
+        existing=next((item for item in candidates if _key(item.applicant)==_key(data.get("applicant"))),None)
     if mobile and 10<=len(mobile)<=15:
         count=db.scalar(select(func.count(CaseVisit.id)).join(Case).where(Case.mobile==mobile)) or 0
         if count:warnings.append(_issue("mobile",mobile,f"Mobile already exists in {count} visits."))
@@ -175,7 +175,8 @@ def resume_import(db,user):
 def _create_visit(db,user,data):
     companies,banks,_,executives,districts,_=_masters(db,user)
     company=next(x for x in companies if x.name==data["company"]);bank=next(x for x in banks if x.name==data["bank"]);district=next(x for x in districts if x.name==data["district"]);executive=next(x for x in executives if x.full_name==data["executive"])
-    parent=db.scalar(select(Case).where(Case.company_id==company.id,func.lower(func.trim(Case.bank))==_key(bank.name),func.lower(func.trim(Case.los_no))==_key(data["los_no"])).with_for_update())
+    candidates=db.scalars(select(Case).where(Case.company_id==company.id,func.lower(func.trim(Case.bank))==_key(bank.name),func.lower(func.trim(Case.los_no))==_key(data["los_no"])).with_for_update()).all()
+    parent=next((item for item in candidates if _key(item.applicant)==_key(data["applicant"])),None)
     created=False
     if parent is None:
         from uuid import uuid4
