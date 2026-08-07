@@ -45,6 +45,7 @@ class UserResponse(BaseModel):
     executive_id: int | None
     executive_name: str | None
     permissions: list[str]
+    active_session: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 

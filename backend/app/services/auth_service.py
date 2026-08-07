@@ -3,7 +3,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.security import create_access_token, hash_password, verify_password
-from app.models.user import User
+from app.models.user import User, UserSession
+from uuid import uuid4
 from app.schemas.auth import Token, UserCreate, UserLogin
 from app.services.permission_service import grant_default_permissions
 
@@ -25,8 +26,7 @@ def authenticate_user(db: Session, login_data: UserLogin) -> User | None:
     if not user.is_active:
         return None
     user.last_login = datetime.now(timezone.utc)
-    db.commit()
-    db.refresh(user)
+    db.flush()
     return user
 
 
@@ -55,10 +55,17 @@ def create_user(db: Session, user_data: UserCreate) -> User:
     return user
 
 
-def build_token_response(user: User) -> Token:
+def build_token_response(db: Session, user: User, user_agent: str | None = None, ip_address: str | None = None) -> Token:
+    now = datetime.now(timezone.utc)
+    locked = db.query(User).filter(User.id == user.id).with_for_update().one()
+    if locked.role in {"Manager", "Executive"}:
+        db.query(UserSession).filter(UserSession.user_id == locked.id, UserSession.revoked_at.is_(None)).update(
+            {UserSession.revoked_at: now, UserSession.revoke_reason: "NEW_LOGIN"}, synchronize_session=False)
+    jti = uuid4().hex
+    db.add(UserSession(user_id=locked.id, jti=jti, user_agent=user_agent, ip_address=ip_address,
+        created_at=now, last_seen_at=now))
+    db.commit()
     token = create_access_token({
-        "sub": str(user.id),
-        "username": user.username,
-        "role": user.role,
+        "sub": str(locked.id), "username": locked.username, "role": locked.role, "jti": jti,
     })
     return Token(access_token=token, token_type="bearer")

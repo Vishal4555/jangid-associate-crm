@@ -19,6 +19,7 @@ export async function updateUser(id: number, payload: Partial<UserPayload>): Pro
 export async function resetUserPassword(id: number, password: string): Promise<void> {
   await API.post(`/users/${id}/reset-password`, { password });
 }
+export async function forceLogoutUser(id:number):Promise<void>{await API.post(`/users/${id}/force-logout`)}
 
 export async function listPermissions(): Promise<Permission[]> { const response=await API.get<Permission[]>("/permissions"); return response.data; }
 export async function getUserPermissions(id:number):Promise<string[]>{const response=await API.get<{permission_codes:string[]}>(`/users/${id}/permissions`);return response.data.permission_codes}

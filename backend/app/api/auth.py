@@ -11,7 +11,8 @@ from sqlalchemy.exc import IntegrityError
 
 from app.core.security import get_current_active_user, require_permission
 from app.db.database import get_db
-from app.models.user import User
+from app.models.user import User, UserSession
+from datetime import datetime, timezone
 from app.schemas.auth import ProfileUpdate, Token, UserLogin, UserResponse
 from app.services.auth_service import authenticate_user, build_token_response
 
@@ -86,7 +87,15 @@ def login(request: Request, login_data: UserLogin, db: Session = Depends(get_db)
 
     with failed_login_attempts_lock:
         failed_login_attempts.pop(client_ip, None)
-    return build_token_response(user)
+    return build_token_response(db, user, request.headers.get("user-agent"), client_ip)
+
+
+@router.post("/logout", status_code=204)
+def logout(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+    row = db.query(UserSession).filter(UserSession.user_id == current_user.id,
+        UserSession.jti == current_user.current_session_jti, UserSession.revoked_at.is_(None)).first()
+    if row:
+        row.revoked_at = datetime.now(timezone.utc); row.revoke_reason = "LOGOUT"; db.commit()
 
 
 @router.get("/me", response_model=UserResponse)

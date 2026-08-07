@@ -36,8 +36,11 @@ API.interceptors.response.use(
   (response) => response,
   (error) => {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
+      const revoked = error.response?.data?.detail === "SESSION_REVOKED";
+      if (revoked) window.sessionStorage.setItem("session-ended-message", "This account was signed in from another browser.\nYour session has ended.");
       clearStoredToken();
-      notifyAuthSessionCleared("unauthorized");
+      notifyAuthSessionCleared(revoked ? "session_revoked" : "unauthorized");
+      if (revoked && window.location.pathname !== "/login") window.location.assign("/login");
     }
 
     return Promise.reject(error);

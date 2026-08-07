@@ -22,3 +22,4 @@ export async function updateCurrentUser(payload: ProfilePayload): Promise<AuthUs
   const response = await API.put<AuthUser>("/auth/me", payload);
   return response.data;
 }
+export async function logoutCurrentSession():Promise<void>{await API.post("/auth/logout")}

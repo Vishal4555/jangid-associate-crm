@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [sessionMessage] = useState(()=>{const value=window.sessionStorage.getItem("session-ended-message");window.sessionStorage.removeItem("session-ended-message");return value});
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -128,6 +129,7 @@ export default function LoginPage() {
               Continue to the Jangid Associate CRM customer workspace.
             </p>
 
+            {sessionMessage&&<p className="mt-5 whitespace-pre-line rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{sessionMessage}</p>}
             <form className="mt-8 space-y-5" onSubmit={handleLogin}>
               <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
                 Username or email

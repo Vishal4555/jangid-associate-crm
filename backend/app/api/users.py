@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from app.core.security import get_current_active_user, hash_password, has_permission, require_any_permission, require_permission
 from app.db.database import get_db
 from app.models.master import Company, Executive
-from app.models.user import User, UserAuditLog, UserCompany
+from app.models.user import User, UserAuditLog, UserCompany, UserSession
+from datetime import datetime, timezone
 from app.schemas.auth import PasswordReset, UserCreate, UserResponse, UserUpdate
 from app.schemas.permission import UserPermissionsResponse, UserPermissionsUpdate
 from app.services.permission_service import grant_default_permissions, replace_permissions
@@ -81,12 +82,26 @@ def list_users(search: str | None = None, role: str | None = None, is_active: bo
         if role not in {"Admin", "Manager", "Executive"}: raise HTTPException(status_code=422, detail="Invalid role filter")
         statement = statement.where(User.role == role)
     if is_active is not None: statement = statement.where(User.is_active == is_active)
-    return db.scalars(statement).all()
+    users = db.scalars(statement).all()
+    active_ids = set(db.scalars(select(UserSession.user_id).where(UserSession.revoked_at.is_(None))).all())
+    for user in users: user.active_session = user.id in active_ids
+    return users
 
 
 @router.get("/{user_id}", response_model=UserResponse)
 def read_user(user_id: int, db: Session = Depends(get_db), _: User = read_access):
-    return get_user_or_404(db, user_id)
+    user = get_user_or_404(db, user_id)
+    user.active_session = db.scalar(select(UserSession.id).where(UserSession.user_id == user.id, UserSession.revoked_at.is_(None)).limit(1)) is not None
+    return user
+
+
+@router.post("/{user_id}/force-logout", status_code=204)
+def force_logout(user_id: int, db: Session = Depends(get_db), actor: User = Depends(get_current_active_user)):
+    if actor.role != "Admin": raise HTTPException(status_code=403, detail="Only Admins can force logout users")
+    get_user_or_404(db, user_id); now = datetime.now(timezone.utc)
+    db.query(UserSession).filter(UserSession.user_id == user_id, UserSession.revoked_at.is_(None)).update(
+        {UserSession.revoked_at: now, UserSession.revoke_reason: "FORCE_LOGOUT"}, synchronize_session=False)
+    db.commit()
 
 
 @router.post("", response_model=UserResponse, status_code=201)

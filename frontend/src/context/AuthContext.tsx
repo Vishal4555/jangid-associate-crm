@@ -17,7 +17,7 @@ import {
   setRememberedUsername,
   setStoredToken,
 } from "../services/authStorage";
-import { fetchCurrentUser, loginWithPassword } from "../services/authService";
+import { fetchCurrentUser, loginWithPassword, logoutCurrentSession } from "../services/authService";
 import type { AuthUser, LoginCredentials } from "../types/auth";
 
 type AuthContextValue = {
@@ -25,7 +25,7 @@ type AuthContextValue = {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (credentials: LoginCredentials) => Promise<AuthUser>;
-  logout: () => void;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -115,7 +115,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try { await logoutCurrentSession(); } catch { /* local logout must still complete */ }
     clearSession("logout");
   }, [clearSession]);
 

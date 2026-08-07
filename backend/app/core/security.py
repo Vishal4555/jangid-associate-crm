@@ -10,7 +10,7 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.models.user import User
+from app.models.user import User, UserSession
 from app.core.permissions import ALL_PERMISSION_CODES
 
 
@@ -67,7 +67,8 @@ def get_current_user(
     try:
         payload = verify_token(credentials.credentials)
         user_id = payload.get("sub")
-        if user_id is None:
+        jti = payload.get("jti")
+        if user_id is None or jti is None:
             raise ValueError("Token subject is missing")
         user = db.get(User, int(user_id))
     except (ValueError, TypeError):
@@ -79,6 +80,13 @@ def get_current_user(
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"}
         )
+
+    session = db.query(UserSession).filter(UserSession.user_id == user.id, UserSession.jti == jti).first()
+    if session is None or session.revoked_at is not None:
+        raise HTTPException(status_code=401, detail="SESSION_REVOKED", headers={"WWW-Authenticate": "Bearer"})
+    session.last_seen_at = datetime.now(timezone.utc)
+    db.commit()
+    user.current_session_jti = jti
 
     return user
 

@@ -14,6 +14,7 @@ export interface AuthUser {
   executive_id: number | null;
   executive_name: string | null;
   permissions: string[];
+  active_session: boolean;
 }
 
 export interface Permission { id:number; code:string; name:string; description:string; module:string; is_active:boolean }

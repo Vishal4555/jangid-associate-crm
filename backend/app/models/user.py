@@ -79,3 +79,16 @@ class UserAuditLog(Base):
     old_value = Column(Text, nullable=True)
     new_value = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    jti = Column(String(64), unique=True, nullable=False, index=True)
+    user_agent = Column(String(500), nullable=True)
+    ip_address = Column(String(64), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    last_seen_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    revoked_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    revoke_reason = Column(String(100), nullable=True)

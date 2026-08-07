@@ -2,7 +2,7 @@ const AUTH_TOKEN_KEY = "jangid-associate-crm.auth.token";
 const REMEMBERED_USERNAME_KEY = "jangid-associate-crm.auth.username";
 const AUTH_SESSION_CLEARED_EVENT = "jangid-associate-crm-auth-cleared";
 
-export type AuthClearReason = "logout" | "unauthorized" | "bootstrap";
+export type AuthClearReason = "logout" | "unauthorized" | "bootstrap" | "session_revoked";
 
 export function getStoredToken(): string | null {
   return window.localStorage.getItem(AUTH_TOKEN_KEY);
