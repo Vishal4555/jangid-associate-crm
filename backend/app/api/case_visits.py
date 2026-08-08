@@ -13,7 +13,7 @@ from app.models.case_activity import CaseActivity
 from app.models.case_visit import CaseVisit
 from app.models.billing import Billing
 from app.models.billing_month import BankMonthlyBillingSnapshot, BillingMonth
-from app.models.master import District
+from app.models.master import District, Executive
 from app.models.user import User
 from app.schemas.case import MessageResponse
 from app.schemas.case_visit import (
@@ -44,7 +44,8 @@ def list_case_visits(
     stmt = select(CaseVisit, Case).join(Case, Case.id == CaseVisit.case_id)
     stmt = apply_company_scope(stmt, Case.company_id, user)
     if user.role == "Executive" and not has_permission(user, "cases.view_all"):
-        stmt = stmt.where(CaseVisit.executive == _executive_name(user))
+        stmt = stmt.where(or_(CaseVisit.executive_id == user.executive_id,
+            CaseVisit.executive == _executive_name(user)))
     if search and (term := search.strip()):
         pattern = f"%{term.casefold()}%"
         stmt = stmt.where(or_(
@@ -71,7 +72,8 @@ def list_case_visits(
         "loan_type": case.loan_type, "receive_date": visit.receive_date,
         "closed_date": visit.closed_date, "tat_days": visit.tat_days, "address": visit.address,
         "district_id": visit.district_id, "district": visit.district, "city": visit.city,
-        "landmark": visit.landmark, "executive": visit.executive, "status": visit.status,
+        "landmark": visit.landmark, "executive_id": visit.executive_id,
+        "executive": visit.executive, "status": visit.status,
         "negative_reason": visit.negative_reason, "remarks": visit.remarks,
         "created_at": visit.created_at, "updated_at": visit.updated_at,
     } for visit, case in results]
@@ -100,7 +102,10 @@ def _executive_name(user: User) -> str:
 
 
 def _assert_assigned(visit: CaseVisit, user: User) -> None:
-    if user.role == "Executive" and visit.executive != _executive_name(user):
+    if user.role == "Executive" and not (
+        visit.executive_id == user.executive_id or
+        (visit.executive_id is None and visit.executive == _executive_name(user))
+    ):
         raise HTTPException(status_code=403, detail="This visit is not assigned to you")
 
 
@@ -117,6 +122,28 @@ def _dimensions(db: Session, data: dict) -> None:
     data["district"] = district.name
 
 
+def _assignment(db: Session, data: dict) -> None:
+    if "executive_id" not in data:
+        return
+    executive_id = data.get("executive_id")
+    if executive_id is None:
+        data["executive"] = None
+        return
+    executive = db.get(Executive, executive_id)
+    if executive is None or executive.status != "Active":
+        raise HTTPException(status_code=422, detail="Active Executive Master record not found")
+    data["executive"] = executive.full_name
+
+
+def _validate_negative_reason(data: dict, current: CaseVisit | None = None) -> None:
+    visit_status = data.get("status", current.status if current else "Pending")
+    reason = data.get("negative_reason", current.negative_reason if current else None)
+    if visit_status == "Negative" and not (reason and reason.strip()):
+        raise HTTPException(status_code=422, detail="Negative Reason is required when Status is Negative")
+    if visit_status != "Negative" and ("negative_reason" in data or "status" in data):
+        data["negative_reason"] = None
+
+
 def _activity(case_id: int, kind: str, user: User, visit: CaseVisit, field=None, old=None, new=None):
     return CaseActivity(case_id=case_id, activity_type=kind, field_name=field,
         old_value=None if old is None else str(old), new_value=None if new is None else str(new),
@@ -128,7 +155,8 @@ def _activity(case_id: int, kind: str, user: User, visit: CaseVisit, field=None,
 def list_visits(case_id: int, db: Session = Depends(get_db), user: User = Depends(require_permission("cases.view"))):
     _case(db, case_id, user)
     stmt = select(CaseVisit).where(CaseVisit.case_id == case_id)
-    if user.role == "Executive": stmt = stmt.where(CaseVisit.executive == _executive_name(user))
+    if user.role == "Executive": stmt = stmt.where(or_(CaseVisit.executive_id == user.executive_id,
+        CaseVisit.executive == _executive_name(user)))
     return db.scalars(stmt.order_by(CaseVisit.id)).all()
 
 
@@ -136,7 +164,7 @@ def list_visits(case_id: int, db: Session = Depends(get_db), user: User = Depend
 def create_visit(case_id: int, payload: CaseVisitCreate, db: Session = Depends(get_db), user: User = Depends(require_permission("visits.create"))):
     _case(db, case_id, user)
     data = payload.model_dump()
-    _dimensions(db, data)
+    _dimensions(db, data); _assignment(db, data); _validate_negative_reason(data)
     data["closed_date"] = date.today() if data["status"] in {"Positive", "Negative"} else None
     visit = CaseVisit(case_id=case_id, created_by_user_id=user.id, updated_by_user_id=user.id, **data)
     try:
@@ -155,11 +183,14 @@ def get_visit(case_id: int, visit_id: int, db: Session = Depends(get_db), user: 
 @router.put("/{visit_id}", response_model=CaseVisitResponse)
 def update_visit(case_id: int, visit_id: int, payload: CaseVisitUpdate, db: Session = Depends(get_db), user: User = Depends(require_any_permission("visits.edit", "cases.edit_assigned"))):
     _case(db, case_id, user); visit = _visit(db, case_id, visit_id); _assert_assigned(visit, user)
-    data = payload.model_dump(exclude_unset=True); _dimensions(db, data)
+    data = payload.model_dump(exclude_unset=True); legacy_assignment = "executive" in data
+    _dimensions(db, data); _assignment(db, data); _validate_negative_reason(data, visit)
     if user.role == "Executive" and not has_permission(user, "visits.edit"):
         allowed = {"status", "negative_reason", "remarks", "next_follow_up_at", "follow_up_note"}
         forbidden = set(data) - allowed
         if forbidden: raise HTTPException(status_code=403, detail=f"Executives cannot update: {', '.join(sorted(forbidden))}")
+    if legacy_assignment:
+        raise HTTPException(status_code=422, detail="Use executive_id to assign an Executive Master record")
     old_status = visit.status
     new_status = data.get("status", old_status)
     if new_status == "Pending": data["closed_date"] = None
@@ -168,7 +199,7 @@ def update_visit(case_id: int, visit_id: int, payload: CaseVisitUpdate, db: Sess
     for field, value in data.items():
         old = getattr(visit, field)
         if old != value:
-            kind = "VISIT_STATUS_CHANGED" if field == "status" else "VISIT_EXECUTIVE_CHANGED" if field == "executive" else "VISIT_UPDATED"
+            kind = "VISIT_STATUS_CHANGED" if field == "status" else "VISIT_EXECUTIVE_CHANGED" if field in {"executive", "executive_id"} else "VISIT_UPDATED"
             activities.append(_activity(case_id, kind, user, visit, field, old, value)); setattr(visit, field, value)
     visit.updated_by_user_id = user.id
     try:

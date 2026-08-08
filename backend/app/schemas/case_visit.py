@@ -14,6 +14,7 @@ class CaseVisitBase(BaseModel):
     district: str | None = None
     city: str | None = None
     landmark: str | None = None
+    executive_id: int | None = None
     executive: str | None = None
     status: VisitStatus = "Pending"
     negative_reason: str | None = None
@@ -33,6 +34,7 @@ class CaseVisitUpdate(BaseModel):
     district_id: int | None = None
     city: str | None = None
     landmark: str | None = None
+    executive_id: int | None = None
     executive: str | None = None
     status: VisitStatus | None = None
     negative_reason: str | None = None
@@ -73,6 +75,7 @@ class CaseVisitListRow(BaseModel):
     district: str | None = None
     city: str | None = None
     landmark: str | None = None
+    executive_id: int | None = None
     executive: str | None = None
     status: VisitStatus
     negative_reason: str | None = None

@@ -19,6 +19,7 @@ class CaseVisit(Base):
     district = Column(String(100), nullable=True)
     city = Column(String(100), nullable=True)
     landmark = Column(String(300), nullable=True)
+    executive_id = Column(Integer, ForeignKey("executives.id", ondelete="SET NULL"), nullable=True, index=True)
     executive = Column(String(100), nullable=True)
     status = Column(String(20), nullable=False, default="Pending", server_default="Pending")
     negative_reason = Column(String(300), nullable=True)

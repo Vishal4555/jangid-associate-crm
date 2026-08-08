@@ -32,6 +32,7 @@ export type CaseApiResponse = {
   status: string | null;
   negative_reason: string | null;
   landmark: string | null;
+  executive_id: number | null;
   remarks: string | null;
   next_follow_up_at: string | null;
   follow_up_note: string | null;

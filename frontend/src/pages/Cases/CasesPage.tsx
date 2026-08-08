@@ -262,6 +262,7 @@ export default function CasesPage() {
         caseItem={editingCase}
         onClose={() => setEditingCase(null)}
         onUpdated={() => {
+          setNotice("Visit updated successfully.");
           setEditingCase(null);
           void loadCases({ silent: true });
         }}

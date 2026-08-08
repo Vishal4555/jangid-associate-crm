@@ -4,6 +4,7 @@ from datetime import date
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///./case-visits-tests.db")
 
+from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
@@ -13,6 +14,7 @@ from app.api.case_visits import create_visit, list_case_visits, update_visit
 from app.db.database import Base
 from app.models.case import Case
 from app.models.case_visit import CaseVisit
+from app.models.master import District, Executive
 from app.models.user import User
 from app.schemas.case_visit import CaseVisitCreate, CaseVisitUpdate
 
@@ -34,7 +36,8 @@ class CaseVisitTests(unittest.TestCase):
         self.assertEqual(self.db.query(CaseVisit).filter_by(case_id=self.case.id).count(), 2)
         completed = update_visit(self.case.id, first.id, CaseVisitUpdate(status="Positive"), self.db, self.user)
         self.assertEqual(completed.closed_date, date.today())
-        swapped = update_visit(self.case.id, first.id, CaseVisitUpdate(status="Negative"), self.db, self.user)
+        swapped = update_visit(self.case.id, first.id, CaseVisitUpdate(
+            status="Negative", negative_reason="Verification failed"), self.db, self.user)
         self.assertEqual(swapped.closed_date, completed.closed_date)
         pending = update_visit(self.case.id, first.id, CaseVisitUpdate(status="Pending"), self.db, self.user)
         self.assertIsNone(pending.closed_date)
@@ -63,10 +66,55 @@ class CaseVisitTests(unittest.TestCase):
     def test_editing_one_visit_does_not_change_sibling(self):
         first = create_visit(self.case.id, CaseVisitCreate(visit_type="Residence", address="Before"), self.db, self.user)
         second = create_visit(self.case.id, CaseVisitCreate(visit_type="Office", address="Sibling"), self.db, self.user)
-        update_visit(self.case.id, first.id, CaseVisitUpdate(address="After", executive="Amit"), self.db, self.user)
+        executive = Executive(full_name="Amit", status="Active")
+        self.db.add(executive); self.db.commit(); self.db.refresh(executive)
+        update_visit(self.case.id, first.id, CaseVisitUpdate(address="After", executive_id=executive.id), self.db, self.user)
         self.db.refresh(second)
         self.assertEqual(second.address, "Sibling")
         self.assertIsNone(second.executive)
+
+    def test_canonical_executive_and_district_assignment(self):
+        executive = Executive(full_name="Active Executive", status="Active")
+        district = District(name="Kota", state="Rajasthan", is_active=True)
+        self.db.add_all([executive, district]); self.db.commit()
+        visit = create_visit(self.case.id, CaseVisitCreate(visit_type="Residence"), self.db, self.user)
+
+        updated = update_visit(self.case.id, visit.id, CaseVisitUpdate(
+            executive_id=executive.id, district_id=district.id, city="Kota City"), self.db, self.user)
+
+        self.assertEqual(updated.executive_id, executive.id)
+        self.assertEqual(updated.executive, "Active Executive")
+        self.assertEqual(updated.district_id, district.id)
+        self.assertEqual(updated.district, "Kota")
+        self.assertEqual(updated.city, "Kota City")
+
+    def test_inactive_executive_cannot_be_newly_assigned(self):
+        executive = Executive(full_name="Inactive Executive", status="Inactive")
+        self.db.add(executive); self.db.commit()
+        visit = create_visit(self.case.id, CaseVisitCreate(), self.db, self.user)
+        with self.assertRaises(HTTPException) as raised:
+            update_visit(self.case.id, visit.id, CaseVisitUpdate(executive_id=executive.id), self.db, self.user)
+        self.assertEqual(raised.exception.status_code, 422)
+
+    def test_negative_reason_validation_and_nonnegative_clear(self):
+        visit = create_visit(self.case.id, CaseVisitCreate(), self.db, self.user)
+        with self.assertRaises(HTTPException) as raised:
+            update_visit(self.case.id, visit.id, CaseVisitUpdate(status="Negative"), self.db, self.user)
+        self.assertEqual(raised.exception.status_code, 422)
+        negative = update_visit(self.case.id, visit.id, CaseVisitUpdate(
+            status="Negative", negative_reason="Address not found"), self.db, self.user)
+        self.assertEqual(negative.negative_reason, "Address not found")
+        positive = update_visit(self.case.id, visit.id, CaseVisitUpdate(status="Positive"), self.db, self.user)
+        self.assertIsNone(positive.negative_reason)
+
+    def test_visit_edit_preserves_parent_identity(self):
+        self.case.los_no = "LOS-PRESERVE"; self.case.applicant = "Original Applicant"
+        self.case.company = "Original Company"; self.case.bank = "Original Bank"; self.db.commit()
+        visit = create_visit(self.case.id, CaseVisitCreate(), self.db, self.user)
+        update_visit(self.case.id, visit.id, CaseVisitUpdate(address="New visit address"), self.db, self.user)
+        self.db.refresh(self.case)
+        self.assertEqual((self.case.los_no, self.case.applicant, self.case.company, self.case.bank),
+            ("LOS-PRESERVE", "Original Applicant", "Original Company", "Original Bank"))
 
 
 if __name__ == "__main__": unittest.main()

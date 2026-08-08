@@ -4,7 +4,7 @@ export type VisitType = "Residence" | "Office" | "Permanent" | "Business" | "Oth
 export interface CaseVisit {
   id: number; case_id: number; visit_type: VisitType; address: string | null;
   district_id: number | null; district: string | null; city: string | null;
-  landmark: string | null; executive: string | null; status: CaseStatus;
+  landmark: string | null; executive_id: number | null; executive: string | null; status: CaseStatus;
   negative_reason: string | null; receive_date: string | null; closed_date: string | null;
   remarks: string | null; next_follow_up_at: string | null; follow_up_note: string | null;
   tat_days: number | null; created_at: string; updated_at: string;
@@ -15,7 +15,7 @@ export interface CaseVisitRow {
   company_id: number | null; company: string; bank: string; applicant: string;
   mobile: string; loan_type: string; receive_date: string; closed_date: string;
   tat_days: number | null; address: string; district_id: number | null;
-  district: string; city: string; landmark: string; executive: string;
+  district: string; city: string; landmark: string; executive_id: number | null; executive: string;
   status: CaseStatus; negative_reason: string; remarks: string;
   next_follow_up_at: string | null; follow_up_note: string | null;
   created_at: string; updated_at: string;
@@ -25,7 +25,9 @@ export interface CaseVisitListResponse {
   items: CaseVisitRow[]; total: number; page: number; page_size: number;
 }
 
-export type CaseVisitPayload = Omit<CaseVisit, "id" | "case_id" | "closed_date" | "tat_days" | "created_at" | "updated_at">;
+export type CaseVisitPayload = Omit<CaseVisit, "id" | "case_id" | "closed_date" | "tat_days" | "created_at" | "updated_at" | "executive_id"> & {
+  executive_id?: number | null;
+};
 
 export interface Case {
   id: number;
