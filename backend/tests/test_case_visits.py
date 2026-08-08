@@ -1,16 +1,17 @@
 import os
 import unittest
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///./case-visits-tests.db")
 
 from fastapi import HTTPException
+from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 import app.db.base
-from app.api.case_visits import create_visit, list_case_visits, update_visit
+from app.api.case_visits import VisitSort, create_visit, list_case_visits, update_visit
 from app.db.database import Base
 from app.models.case import Case
 from app.models.case_visit import CaseVisit
@@ -34,6 +35,7 @@ class CaseVisitTests(unittest.TestCase):
         first = create_visit(self.case.id, CaseVisitCreate(visit_type="Residence", receive_date=date(2026, 8, 1)), self.db, self.user)
         second = create_visit(self.case.id, CaseVisitCreate(visit_type="Office", receive_date=date(2026, 8, 2)), self.db, self.user)
         self.assertEqual(self.db.query(CaseVisit).filter_by(case_id=self.case.id).count(), 2)
+        self.assertIsNotNone(first.created_at); self.assertIsNotNone(second.created_at)
         completed = update_visit(self.case.id, first.id, CaseVisitUpdate(status="Positive"), self.db, self.user)
         self.assertEqual(completed.closed_date, date.today())
         swapped = update_visit(self.case.id, first.id, CaseVisitUpdate(
@@ -62,6 +64,45 @@ class CaseVisitTests(unittest.TestCase):
         residence = list_case_visits(**{**args, "search": None, "visit_type": "Residence", "page_size": 20})
         self.assertEqual(residence["total"], 1)
         self.assertEqual(residence["items"][0]["address"], "Home")
+
+    def test_server_side_visit_sorting_and_pagination(self):
+        base = datetime(2026, 8, 8, 7, 0, tzinfo=timezone.utc)
+        visits = [
+            CaseVisit(case_id=self.case.id, visit_type="Residence", status="Pending", receive_date=date(2026, 8, 9), created_at=base),
+            CaseVisit(case_id=self.case.id, visit_type="Office", status="Pending", receive_date=date(2026, 8, 7), created_at=base + timedelta(hours=2)),
+            CaseVisit(case_id=self.case.id, visit_type="Business", status="Pending", receive_date=date(2026, 8, 7), created_at=base + timedelta(hours=1)),
+        ]
+        self.db.add_all(visits); self.db.commit()
+        args = dict(search=None, status_filter=None, visit_type=None, company_id=None, bank=None,
+            district_id=None, city=None, executive=None, date_from=None, date_to=None,
+            page=1, page_size=20, db=self.db, user=self.user)
+        latest = list_case_visits(**args, sort="latest_added")["items"]
+        oldest = list_case_visits(**args, sort="oldest_added")["items"]
+        receive_desc = list_case_visits(**args, sort="receive_date_desc")["items"]
+        receive_asc = list_case_visits(**args, sort="receive_date_asc")["items"]
+        self.assertEqual([row["visit_id"] for row in latest], [visits[1].id, visits[2].id, visits[0].id])
+        self.assertEqual([row["visit_id"] for row in oldest], [visits[0].id, visits[2].id, visits[1].id])
+        self.assertEqual([row["visit_id"] for row in receive_desc], [visits[0].id, visits[1].id, visits[2].id])
+        self.assertEqual([row["visit_id"] for row in receive_asc], [visits[2].id, visits[1].id, visits[0].id])
+        page = list_case_visits(**{**args, "page_size": 1}, sort="latest_added")["items"]
+        self.assertEqual(page[0]["visit_id"], visits[1].id)
+
+    def test_latest_added_uses_id_tie_breaker_and_company_filter(self):
+        self.case.company_id = 10
+        other = Case(case_no="OTHER-COMPANY", applicant="Other", company_id=20)
+        self.db.add(other); self.db.flush()
+        stamp = datetime(2026, 8, 8, 7, 0, tzinfo=timezone.utc)
+        first = CaseVisit(case_id=self.case.id, visit_type="Residence", status="Pending", created_at=stamp)
+        second = CaseVisit(case_id=self.case.id, visit_type="Office", status="Pending", created_at=stamp)
+        newest_other = CaseVisit(case_id=other.id, visit_type="Business", status="Pending", created_at=stamp + timedelta(days=1))
+        self.db.add_all([first, second, newest_other]); self.db.commit()
+        result = list_case_visits(search=None, status_filter=None, visit_type=None, company_id=10, bank=None,
+            district_id=None, city=None, executive=None, date_from=None, date_to=None, sort="latest_added",
+            page=1, page_size=20, db=self.db, user=self.user)
+        self.assertEqual([row["visit_id"] for row in result["items"]], [second.id, first.id])
+
+    def test_invalid_sort_value_is_rejected(self):
+        with self.assertRaises(ValidationError): TypeAdapter(VisitSort).validate_python("created_at desc")
 
     def test_editing_one_visit_does_not_change_sibling(self):
         first = create_visit(self.case.id, CaseVisitCreate(visit_type="Residence", address="Before"), self.db, self.user)

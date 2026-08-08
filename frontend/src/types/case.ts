@@ -1,5 +1,6 @@
 export type CaseStatus = "Pending" | "Positive" | "Negative";
 export type VisitType = "Residence" | "Office" | "Permanent" | "Business" | "Other";
+export type VisitSort = "latest_added" | "oldest_added" | "receive_date_desc" | "receive_date_asc";
 
 export interface CaseVisit {
   id: number; case_id: number; visit_type: VisitType; address: string | null;
@@ -18,7 +19,7 @@ export interface CaseVisitRow {
   district: string; city: string; landmark: string; executive_id: number | null; executive: string;
   status: CaseStatus; negative_reason: string; remarks: string;
   next_follow_up_at: string | null; follow_up_note: string | null;
-  created_at: string; updated_at: string;
+  created_at: string | null; updated_at: string;
 }
 
 export interface CaseVisitListResponse {

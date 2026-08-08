@@ -14,7 +14,7 @@ import {downloadCaseTemplate} from "../../services/caseImportService";
 import { getCaseVisitRows } from "../../services/caseService";
 import { listMasters } from "../../services/masterService";
 import { getMyAssignedCompanies } from "../../services/userService";
-import type { CaseVisitRow, CaseStatusFilter, VisitType } from "../../types/case";
+import type { CaseVisitRow, CaseStatusFilter, VisitSort, VisitType } from "../../types/case";
 import type { Bank, Company, District, Executive } from "../../types/master";
 import { useAuth } from "../../context/AuthContext";
 
@@ -58,6 +58,7 @@ export default function CasesPage() {
   const [bank,setBank]=useState(""); const [city,setCity]=useState(""); const [executive,setExecutive]=useState("");
   const [companyId,setCompanyId]=useState(""); const [districtId,setDistrictId]=useState("");
   const [dateFrom,setDateFrom]=useState(""); const [dateTo,setDateTo]=useState("");
+  const [sort,setSort]=useState<VisitSort>("latest_added");
   const [companies,setCompanies]=useState<Company[]>([]); const [banks,setBanks]=useState<Bank[]>([]);
   const [districts,setDistricts]=useState<District[]>([]); const [executives,setExecutives]=useState<Executive[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -72,7 +73,7 @@ export default function CasesPage() {
 
   const pageSize = 20;
 
-  useEffect(() => { const timer = window.setTimeout(() => void loadCases(), 250); return () => window.clearTimeout(timer); }, [search, statusFilter, visitType, bank, city, executive, companyId, districtId, dateFrom, dateTo, currentPage]);
+  useEffect(() => { const timer = window.setTimeout(() => void loadCases(), 250); return () => window.clearTimeout(timer); }, [search, statusFilter, visitType, bank, city, executive, companyId, districtId, dateFrom, dateTo, sort, currentPage]);
   useEffect(()=>{void getMyAssignedCompanies().then(x=>setNoCompanies(!x.all_companies&&x.companies.length===0)).catch(()=>undefined)},[]);
   useEffect(() => {
     let cancelled = false;
@@ -90,7 +91,7 @@ export default function CasesPage() {
 
   function clearFilters() {
     setSearch(""); setStatusFilter("All"); setVisitType("All"); setBank(""); setCity("");
-    setExecutive(""); setCompanyId(""); setDistrictId(""); setDateFrom(""); setDateTo(""); setCurrentPage(1);
+    setExecutive(""); setCompanyId(""); setDistrictId(""); setDateFrom(""); setDateTo(""); setSort("latest_added"); setCurrentPage(1);
   }
 
   function changeFilter(name: "visitType" | "bank" | "city" | "executive" | "companyId" | "districtId" | "dateFrom" | "dateTo", value: string) {
@@ -117,7 +118,7 @@ export default function CasesPage() {
         status: statusFilter === "All" ? undefined : statusFilter, visit_type: visitType === "All" ? undefined : visitType,
         bank: bank.trim() || undefined, city: city.trim() || undefined, executive: executive.trim() || undefined,
         company_id: companyId ? Number(companyId) : undefined, district_id: districtId ? Number(districtId) : undefined,
-        date_from: dateFrom || undefined, date_to: dateTo || undefined, page: currentPage, page_size: pageSize });
+        date_from: dateFrom || undefined, date_to: dateTo || undefined, sort, page: currentPage, page_size: pageSize });
       setCases(Array.isArray(data.items) ? data.items : []);
       setTotal(data.total);
     } catch (loadError) {
@@ -136,7 +137,7 @@ export default function CasesPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, statusFilter, visitType, bank, city, executive, companyId, districtId, dateFrom, dateTo]);
+  }, [search, statusFilter, visitType, bank, city, executive, companyId, districtId, dateFrom, dateTo, sort]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -211,13 +212,14 @@ export default function CasesPage() {
       <CaseToolbar
         search={search}
         statusFilter={statusFilter}
-        visitType={visitType} bank={bank} city={city} executive={executive} companyId={companyId} districtId={districtId} dateFrom={dateFrom} dateTo={dateTo}
+        visitType={visitType} bank={bank} city={city} executive={executive} companyId={companyId} districtId={districtId} dateFrom={dateFrom} dateTo={dateTo} sort={sort}
         companies={companies} banks={banks} districts={districts} executives={executives}
         totalCount={total}
         refreshing={refreshing}
         exporting={exporting}
         onSearchChange={setSearch}
         onStatusChange={setStatusFilter}
+        onSortChange={setSort}
         onFilterChange={changeFilter}
         onClearFilters={clearFilters}
         onRefresh={() => void loadCases({ silent: true })}

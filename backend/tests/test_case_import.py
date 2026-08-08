@@ -74,7 +74,7 @@ class CaseImportTests(unittest.TestCase):
   preview=preview_import(self.db,self.admin,out.getvalue(),"smart.xlsx");self.assertEqual((preview.summary.total_rows,preview.summary.error_rows),(2,2))
   bank_error=next(x for x in preview.rows[0].errors if x.field=="bank");self.assertEqual((bank_error.suggested_value,bank_error.confidence),("AU Bank","high"));self.assertTrue(any("Duplicate of Excel row 2" in x.message for x in preview.rows[1].errors))
   fixed=dict(preview.rows[0].data);fixed["bank"]="AU Bank";result=commit_import(self.db,self.admin,preview.import_token,[ImportCommitRow(row_number=2,resolved_data=fixed)])
-  self.assertEqual((result.imported_rows,result.created_applications,result.remaining_rows),(1,1,1));self.assertEqual(self.db.query(Case).count(),1)
+  self.assertEqual((result.imported_rows,result.created_applications,result.remaining_rows),(1,1,1));self.assertEqual(self.db.query(Case).count(),1);self.assertIsNotNone(self.db.query(CaseVisit).one().created_at)
   repeated=commit_import(self.db,self.admin,preview.import_token,[ImportCommitRow(row_number=2,resolved_data=fixed)]);self.assertIn("already imported",repeated.failed_rows[0].errors[0].message)
 
  def test_smart_warning_resume_ownership_and_add_visit(self):

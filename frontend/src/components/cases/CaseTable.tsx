@@ -57,6 +57,13 @@ function ClampedCell({ value }: { value: string }) {
   return <span className="line-clamp-2 break-words leading-5" title={value || undefined}>{value || "—"}</span>;
 }
 
+function formatAdded(value: string | null): { compact: string; full: string } {
+  if (!value) return { compact: "-", full: "" };
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return { compact: "-", full: value };
+  return { compact: `${parsed.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" })}\n${parsed.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`, full: parsed.toLocaleString() };
+}
+
 export default function CaseTable({
   cases,
   loading,
@@ -107,6 +114,7 @@ export default function CaseTable({
               <th className="p-3 text-left whitespace-nowrap">LOS / Application No</th>
               <th className="p-3 text-left whitespace-nowrap">Visit Type</th>
               <th className="p-3 text-left whitespace-nowrap">Receive Date</th>
+              <th className="p-3 text-left whitespace-nowrap">Added</th>
               <th className="p-3 text-left whitespace-nowrap">TAT</th>
               <th className="p-3 text-left">Applicant</th>
               <th className="min-w-56 p-3 text-left">Address</th>
@@ -134,6 +142,7 @@ export default function CaseTable({
 
                 <td className="p-3 whitespace-nowrap">{item.receive_date || "—"}</td>
 
+                <td className="p-3 whitespace-pre-line whitespace-nowrap" title={formatAdded(item.created_at).full}>{formatAdded(item.created_at).compact}</td>
                 <td className="p-3 whitespace-nowrap">{formatTurnaroundTime(item.receive_date, item.closed_date)}</td>
 
                 <td className="p-3"><ClampedCell value={item.applicant} /></td>

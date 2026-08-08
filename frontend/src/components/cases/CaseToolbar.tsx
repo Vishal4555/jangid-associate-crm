@@ -2,15 +2,15 @@ import { Download, Plus, RefreshCw, Search, Upload, X } from "lucide-react";
 import { Card, PageHeader } from "../ui";
 import type { ReactNode } from "react";
 import type { Bank, Company, District, Executive } from "../../types/master";
-import type { CaseStatusFilter, VisitType } from "../../types/case";
+import type { CaseStatusFilter, VisitSort, VisitType } from "../../types/case";
 
 type FilterName = "visitType" | "bank" | "city" | "executive" | "companyId" | "districtId" | "dateFrom" | "dateTo";
 type Props = {
   search: string; statusFilter: CaseStatusFilter; visitType: "All" | VisitType;
   bank: string; city: string; executive: string; companyId: string; districtId: string;
-  dateFrom: string; dateTo: string; totalCount: number; refreshing: boolean; exporting: boolean;
+  dateFrom: string; dateTo: string; sort: VisitSort; totalCount: number; refreshing: boolean; exporting: boolean;
   companies: Company[]; banks: Bank[]; districts: District[]; executives: Executive[];
-  onSearchChange: (value: string) => void; onStatusChange: (value: CaseStatusFilter) => void;
+  onSearchChange: (value: string) => void; onStatusChange: (value: CaseStatusFilter) => void; onSortChange: (value: VisitSort) => void;
   onFilterChange: (name: FilterName, value: string) => void; onClearFilters: () => void;
   onRefresh: () => void; onAddCase: () => void; onExport: () => void; onDownloadTemplate:()=>void; onImport:()=>void; canAdd: boolean;
 };
@@ -21,7 +21,7 @@ function Field({ label, children, wide = false }: { label: string; children: Rea
 }
 
 export default function CaseToolbar(props: Props) {
-  const activeFilters = Boolean(props.search || props.statusFilter !== "All" || props.visitType !== "All" || props.bank || props.city || props.executive || props.companyId || props.districtId || props.dateFrom || props.dateTo);
+  const activeFilters = Boolean(props.search || props.statusFilter !== "All" || props.visitType !== "All" || props.bank || props.city || props.executive || props.companyId || props.districtId || props.dateFrom || props.dateTo || props.sort !== "latest_added");
   return <Card className="mb-4">
     <PageHeader eyebrow="Cases" title="All Visits" subtitle={`${props.totalCount} visits found`} actions={<>
         {props.canAdd && <button onClick={props.onAddCase} className="flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"><Plus size={18}/>New Case</button>}
@@ -43,6 +43,7 @@ export default function CaseToolbar(props: Props) {
       <Field label="Executive"><select value={props.executive} onChange={e=>props.onFilterChange("executive",e.target.value)} className={fieldClass}><option value="">All executives</option>{props.executives.map(x=><option key={x.id} value={x.full_name}>{x.full_name}</option>)}</select></Field>
       <Field label="Receive From"><input type="date" value={props.dateFrom} onChange={e=>props.onFilterChange("dateFrom",e.target.value)} className={fieldClass}/></Field>
       <Field label="Receive To"><input type="date" value={props.dateTo} onChange={e=>props.onFilterChange("dateTo",e.target.value)} className={fieldClass}/></Field>
+      <Field label="Sort"><select value={props.sort} onChange={e=>props.onSortChange(e.target.value as VisitSort)} className={fieldClass}><option value="latest_added">Latest Added</option><option value="oldest_added">Oldest Added</option><option value="receive_date_desc">Receive Date Newest</option><option value="receive_date_asc">Receive Date Oldest</option></select></Field>
       <div className="flex items-end"><button onClick={props.onClearFilters} disabled={!activeFilters} className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"><X size={17}/>Clear Filters</button></div>
     </div>
   </Card>;

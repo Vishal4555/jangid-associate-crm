@@ -126,7 +126,7 @@ export const getCaseById = async (id: number): Promise<Case> => {
 export type VisitListQuery = {
   search?: string; status?: string; visit_type?: string; company_id?: number; bank?: string;
   district_id?: number; city?: string; executive?: string; date_from?: string; date_to?: string;
-  page?: number; page_size?: number;
+  sort?: import("../types/case").VisitSort; page?: number; page_size?: number;
 };
 
 export const getCaseVisitRows = async (query: VisitListQuery): Promise<CaseVisitListResponse> => {

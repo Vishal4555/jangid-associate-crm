@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import delete, func, or_, select
@@ -22,6 +23,19 @@ from app.schemas.case_visit import (
 
 router = APIRouter(prefix="/cases/{case_id}/visits", tags=["case visits"])
 list_router = APIRouter(prefix="/case-visits", tags=["case visits"])
+VisitSort = Literal["latest_added", "oldest_added", "receive_date_desc", "receive_date_asc"]
+
+
+def _visit_order(sort: VisitSort):
+    added_missing = CaseVisit.created_at.is_(None).asc()
+    receive_missing = CaseVisit.receive_date.is_(None).asc()
+    if sort == "oldest_added":
+        return (added_missing, CaseVisit.created_at.asc(), CaseVisit.id.asc())
+    if sort == "receive_date_desc":
+        return (receive_missing, CaseVisit.receive_date.desc(), added_missing, CaseVisit.created_at.desc(), CaseVisit.id.desc())
+    if sort == "receive_date_asc":
+        return (receive_missing, CaseVisit.receive_date.asc(), added_missing, CaseVisit.created_at.asc(), CaseVisit.id.asc())
+    return (added_missing, CaseVisit.created_at.desc(), CaseVisit.id.desc())
 
 
 @list_router.get("", response_model=CaseVisitListResponse)
@@ -36,6 +50,7 @@ def list_case_visits(
     executive: str | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
+    sort: VisitSort = "latest_added",
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -64,7 +79,7 @@ def list_case_visits(
     if date_to: stmt = stmt.where(CaseVisit.receive_date <= date_to)
 
     total = db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery())) or 0
-    results = db.execute(stmt.order_by(CaseVisit.id.desc()).offset((page - 1) * page_size).limit(page_size)).all()
+    results = db.execute(stmt.order_by(*_visit_order(sort)).offset((page - 1) * page_size).limit(page_size)).all()
     items = [{
         "visit_id": visit.id, "case_id": case.id, "visit_type": visit.visit_type,
         "los_no": case.los_no, "company_id": case.company_id, "company": case.company,

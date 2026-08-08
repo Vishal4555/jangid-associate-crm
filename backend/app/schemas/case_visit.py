@@ -49,7 +49,7 @@ class CaseVisitResponse(CaseVisitBase):
     case_id: int
     closed_date: date | None
     tat_days: int | None
-    created_at: datetime
+    created_at: datetime | None
     updated_at: datetime
     created_by_user_id: int | None
     updated_by_user_id: int | None
@@ -82,7 +82,7 @@ class CaseVisitListRow(BaseModel):
     remarks: str | None = None
     next_follow_up_at: datetime | None = None
     follow_up_note: str | None = None
-    created_at: datetime
+    created_at: datetime | None
     updated_at: datetime
 
 
