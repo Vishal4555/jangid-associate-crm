@@ -106,6 +106,7 @@ def force_logout(user_id: int, db: Session = Depends(get_db), actor: User = Depe
 
 @router.post("", response_model=UserResponse, status_code=201)
 def create_user(payload: UserCreate, db: Session = Depends(get_db), actor: User = Depends(require_permission("users.create"))):
+    if actor.role != 'Admin' and payload.role == 'Admin': raise HTTPException(status_code=403, detail='Only Admins can create Admin users')
     username, email = _clean(payload.username), _clean(str(payload.email)).lower()
     _assert_unique_identity(db, username, email)
     _validate_link(db, payload.role, payload.executive_id, payload.is_active)

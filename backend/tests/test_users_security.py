@@ -69,5 +69,21 @@ class UsersSecurityTests(unittest.TestCase):
         with self.assertRaises(HTTPException) as raised: dependency(self.manager)
         self.assertEqual(raised.exception.status_code, 403)
 
+    def test_manager_create_accepts_email_username_and_normalizes_identity(self):
+        created = create_user(UserCreate(full_name=' Nisha Kumari ', username=' prasadnisha727@gmail.com ', email=' PRASADNISHA727@GMAIL.COM ', mobile='82090 08140', password=PASSWORD, role='Manager'), self.db, self.admin)
+        self.assertEqual(created.username, 'prasadnisha727@gmail.com')
+        self.assertEqual(created.email, 'prasadnisha727@gmail.com')
+        self.assertEqual(created.mobile, '8209008140')
+
+    def test_invalid_mobile_has_field_validation_error(self):
+        with self.assertRaises(ValidationError) as raised:
+            UserCreate(full_name='Invalid', username='invalid-user', email='invalid@example.com', mobile='123', password=PASSWORD, role='Manager')
+        self.assertEqual(raised.exception.errors()[0]['loc'], ('mobile',))
+
+    def test_non_admin_cannot_create_admin(self):
+        with self.assertRaises(HTTPException) as raised:
+            create_user(UserCreate(full_name='New Admin', username='new-admin', email='new-admin@example.com', mobile='8888888888', password=PASSWORD, role='Admin'), self.db, self.manager)
+        self.assertEqual(raised.exception.status_code, 403)
+
 
 if __name__ == "__main__": unittest.main()
